@@ -4,7 +4,7 @@
 
 ## 试用方式
 
-通过 GitHub Pages 打开网页，或者下载后打开 `index.html`。无需安装、登录或 API 密钥。
+通过 GitHub Pages 打开网页，或者完整下载网页与 `assets` 文件夹后打开 `index.html`。无需安装、登录或 API 密钥。
 
 ## 数据和体验边界
 
