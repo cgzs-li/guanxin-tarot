@@ -1,0 +1,1406 @@
+[
+  {
+    "id": 0,
+    "name": "愚者",
+    "english": "The Fool",
+    "file": "assets/rws/00.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:The_Fool_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "Pamela Colman Smith",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  },
+  {
+    "id": 1,
+    "name": "魔术师",
+    "english": "The Magician",
+    "file": "assets/rws/01.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:The_Magician_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "Pamela Colman Smith",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  },
+  {
+    "id": 2,
+    "name": "女祭司",
+    "english": "The High Priestess",
+    "file": "assets/rws/02.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:The_High_Priestess_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "Pamela Colman Smith",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  },
+  {
+    "id": 3,
+    "name": "皇后",
+    "english": "The Empress",
+    "file": "assets/rws/03.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:The_Empress_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "Pamela Colman Smith",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  },
+  {
+    "id": 4,
+    "name": "皇帝",
+    "english": "The Emperor",
+    "file": "assets/rws/04.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:The_Emperor_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "Pamela Colman Smith",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  },
+  {
+    "id": 5,
+    "name": "教皇",
+    "english": "The Hierophant",
+    "file": "assets/rws/05.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:The_Hierophant_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "Pamela Colman Smith",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  },
+  {
+    "id": 6,
+    "name": "恋人",
+    "english": "The Lovers",
+    "file": "assets/rws/06.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:The_Lovers_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "Pamela Colman Smith",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  },
+  {
+    "id": 7,
+    "name": "战车",
+    "english": "The Chariot",
+    "file": "assets/rws/07.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:The_Chariot_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "Pamela Colman Smith",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  },
+  {
+    "id": 8,
+    "name": "力量",
+    "english": "Strength",
+    "file": "assets/rws/08.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Strength_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "Pamela Colman Smith",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  },
+  {
+    "id": 9,
+    "name": "隐士",
+    "english": "The Hermit",
+    "file": "assets/rws/09.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:The_Hermit_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "Pamela Colman Smith",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  },
+  {
+    "id": 10,
+    "name": "命运之轮",
+    "english": "Wheel of Fortune",
+    "file": "assets/rws/10.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Wheel_of_Fortune_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "Pamela Colman Smith",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  },
+  {
+    "id": 11,
+    "name": "正义",
+    "english": "Justice",
+    "file": "assets/rws/11.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Justice_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "Pamela Colman Smith",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  },
+  {
+    "id": 12,
+    "name": "倒吊人",
+    "english": "The Hanged Man",
+    "file": "assets/rws/12.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:The_Hanged_Man_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "Pamela Colman Smith",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  },
+  {
+    "id": 13,
+    "name": "死神",
+    "english": "Death",
+    "file": "assets/rws/13.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Death_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "Pamela Colman Smith",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  },
+  {
+    "id": 14,
+    "name": "节制",
+    "english": "Temperance",
+    "file": "assets/rws/14.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Temperance_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "Pamela Colman Smith",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  },
+  {
+    "id": 15,
+    "name": "恶魔",
+    "english": "The Devil",
+    "file": "assets/rws/15.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:The_Devil_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "<bdi><a href=\"https://en.wikipedia.org/wiki/en:Pamela_Colman_Smith\" class=\"extiw\" title=\"w:en:Pamela Colman Smith\"><span title=\"British occultist, artist and illustrator (1878–1951)\">Pamela Colman Smith</span></a></bdi>",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  },
+  {
+    "id": 16,
+    "name": "高塔",
+    "english": "The Tower",
+    "file": "assets/rws/16.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:The_Tower_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "Pamela Colman Smith",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  },
+  {
+    "id": 17,
+    "name": "星星",
+    "english": "The Star",
+    "file": "assets/rws/17.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:The_Star_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "Pamela Colman Smith",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  },
+  {
+    "id": 18,
+    "name": "月亮",
+    "english": "The Moon",
+    "file": "assets/rws/18.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:The_Moon_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "Pamela Colman Smith",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  },
+  {
+    "id": 19,
+    "name": "太阳",
+    "english": "The Sun",
+    "file": "assets/rws/19.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:The_Sun_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "Pamela Colman Smith",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  },
+  {
+    "id": 20,
+    "name": "审判",
+    "english": "Judgement",
+    "file": "assets/rws/20.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Judgement_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "Pamela Colman Smith",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  },
+  {
+    "id": 21,
+    "name": "世界",
+    "english": "The World",
+    "file": "assets/rws/21.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:The_World_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "Pamela Colman Smith",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  },
+  {
+    "id": 22,
+    "name": "权杖王牌",
+    "english": "Ace of Wands",
+    "file": "assets/rws/22.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Ace_of_Wands_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "Pamela Colman Smith",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  },
+  {
+    "id": 23,
+    "name": "权杖二",
+    "english": "Two of Wands",
+    "file": "assets/rws/23.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Two_of_Wands_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "Pamela Colman Smith",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  },
+  {
+    "id": 24,
+    "name": "权杖三",
+    "english": "Three of Wands",
+    "file": "assets/rws/24.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Three_of_Wands_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "Pamela Colman Smith",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  },
+  {
+    "id": 25,
+    "name": "权杖四",
+    "english": "Four of Wands",
+    "file": "assets/rws/25.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Four_of_Wands_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "Pamela Colman Smith",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  },
+  {
+    "id": 26,
+    "name": "权杖五",
+    "english": "Five of Wands",
+    "file": "assets/rws/26.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Five_of_Wands_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "Pamela Colman Smith",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  },
+  {
+    "id": 27,
+    "name": "权杖六",
+    "english": "Six of Wands",
+    "file": "assets/rws/27.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Six_of_Wands_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "Pamela Colman Smith",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  },
+  {
+    "id": 28,
+    "name": "权杖七",
+    "english": "Seven of Wands",
+    "file": "assets/rws/28.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Seven_of_Wands_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "Pamela Colman Smith",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  },
+  {
+    "id": 29,
+    "name": "权杖八",
+    "english": "Eight of Wands",
+    "file": "assets/rws/29.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Eight_of_Wands_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "Pamela Colman Smith",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  },
+  {
+    "id": 30,
+    "name": "权杖九",
+    "english": "Nine of Wands",
+    "file": "assets/rws/30.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Nine_of_Wands_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "Pamela Colman Smith",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  },
+  {
+    "id": 31,
+    "name": "权杖十",
+    "english": "Ten of Wands",
+    "file": "assets/rws/31.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Ten_of_Wands_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "Pamela Colman Smith",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  },
+  {
+    "id": 32,
+    "name": "权杖侍从",
+    "english": "Page of Wands",
+    "file": "assets/rws/32.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Page_of_Wands_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "Pamela Colman Smith",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  },
+  {
+    "id": 33,
+    "name": "权杖骑士",
+    "english": "Knight of Wands",
+    "file": "assets/rws/33.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Knight_of_Wands_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "Pamela Colman Smith",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  },
+  {
+    "id": 34,
+    "name": "权杖皇后",
+    "english": "Queen of Wands",
+    "file": "assets/rws/34.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Queen_of_Wands_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "Pamela Colman Smith",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  },
+  {
+    "id": 35,
+    "name": "权杖国王",
+    "english": "King of Wands",
+    "file": "assets/rws/35.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:King_of_Wands_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "Pamela Colman Smith",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  },
+  {
+    "id": 36,
+    "name": "圣杯王牌",
+    "english": "Ace of Cups",
+    "file": "assets/rws/36.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Ace_of_Cups_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "Pamela Colman Smith",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  },
+  {
+    "id": 37,
+    "name": "圣杯二",
+    "english": "Two of Cups",
+    "file": "assets/rws/37.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Two_of_Cups_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "Pamela Colman Smith",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  },
+  {
+    "id": 38,
+    "name": "圣杯三",
+    "english": "Three of Cups",
+    "file": "assets/rws/38.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Three_of_Cups_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "Pamela Colman Smith",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  },
+  {
+    "id": 39,
+    "name": "圣杯四",
+    "english": "Four of Cups",
+    "file": "assets/rws/39.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Four_of_Cups_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "Pamela Colman Smith",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  },
+  {
+    "id": 40,
+    "name": "圣杯五",
+    "english": "Five of Cups",
+    "file": "assets/rws/40.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Five_of_Cups_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "Pamela Colman Smith",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  },
+  {
+    "id": 41,
+    "name": "圣杯六",
+    "english": "Six of Cups",
+    "file": "assets/rws/41.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Six_of_Cups_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "Pamela Colman Smith",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  },
+  {
+    "id": 42,
+    "name": "圣杯七",
+    "english": "Seven of Cups",
+    "file": "assets/rws/42.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Seven_of_Cups_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "Pamela Colman Smith",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  },
+  {
+    "id": 43,
+    "name": "圣杯八",
+    "english": "Eight of Cups",
+    "file": "assets/rws/43.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Eight_of_Cups_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "Pamela Colman Smith",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  },
+  {
+    "id": 44,
+    "name": "圣杯九",
+    "english": "Nine of Cups",
+    "file": "assets/rws/44.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Nine_of_Cups_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "Pamela Colman Smith",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  },
+  {
+    "id": 45,
+    "name": "圣杯十",
+    "english": "Ten of Cups",
+    "file": "assets/rws/45.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Ten_of_Cups_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "Pamela Colman Smith",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  },
+  {
+    "id": 46,
+    "name": "圣杯侍从",
+    "english": "Page of Cups",
+    "file": "assets/rws/46.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Page_of_Cups_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "Pamela Colman Smith",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  },
+  {
+    "id": 47,
+    "name": "圣杯骑士",
+    "english": "Knight of Cups",
+    "file": "assets/rws/47.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Knight_of_Cups_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "Pamela Colman Smith",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  },
+  {
+    "id": 48,
+    "name": "圣杯皇后",
+    "english": "Queen of Cups",
+    "file": "assets/rws/48.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Queen_of_Cups_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "Pamela Colman Smith",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  },
+  {
+    "id": 49,
+    "name": "圣杯国王",
+    "english": "King of Cups",
+    "file": "assets/rws/49.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:King_of_Cups_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "Pamela Colman Smith",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  },
+  {
+    "id": 50,
+    "name": "宝剑王牌",
+    "english": "One of Swords",
+    "file": "assets/rws/50.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:One_of_Swords_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "Pamela Colman Smith",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  },
+  {
+    "id": 51,
+    "name": "宝剑二",
+    "english": "Two of Swords",
+    "file": "assets/rws/51.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Two_of_Swords_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "Pamela Colman Smith",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  },
+  {
+    "id": 52,
+    "name": "宝剑三",
+    "english": "Three of Swords",
+    "file": "assets/rws/52.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Three_of_Swords_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "Pamela Colman Smith",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  },
+  {
+    "id": 53,
+    "name": "宝剑四",
+    "english": "Four of Swords",
+    "file": "assets/rws/53.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Four_of_Swords_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "Pamela Colman Smith",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  },
+  {
+    "id": 54,
+    "name": "宝剑五",
+    "english": "Five of Swords",
+    "file": "assets/rws/54.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Five_of_Swords_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "Pamela Colman Smith",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  },
+  {
+    "id": 55,
+    "name": "宝剑六",
+    "english": "Six of Swords",
+    "file": "assets/rws/55.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Six_of_Swords_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "Pamela Colman Smith",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  },
+  {
+    "id": 56,
+    "name": "宝剑七",
+    "english": "Seven of Swords",
+    "file": "assets/rws/56.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Seven_of_Swords_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "Pamela Colman Smith",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  },
+  {
+    "id": 57,
+    "name": "宝剑八",
+    "english": "Eight of Swords",
+    "file": "assets/rws/57.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Eight_of_Swords_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "Pamela Colman Smith",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  },
+  {
+    "id": 58,
+    "name": "宝剑九",
+    "english": "Nine of Swords",
+    "file": "assets/rws/58.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Nine_of_Swords_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "Pamela Colman Smith",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  },
+  {
+    "id": 59,
+    "name": "宝剑十",
+    "english": "Ten of Swords",
+    "file": "assets/rws/59.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Ten_of_Swords_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "Pamela Colman Smith",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  },
+  {
+    "id": 60,
+    "name": "宝剑侍从",
+    "english": "Page of Swords",
+    "file": "assets/rws/60.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Page_of_Swords_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "Pamela Colman Smith",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  },
+  {
+    "id": 61,
+    "name": "宝剑骑士",
+    "english": "Knight of Swords",
+    "file": "assets/rws/61.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Knight_of_Swords_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "Pamela Colman Smith",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  },
+  {
+    "id": 62,
+    "name": "宝剑皇后",
+    "english": "Queen of Swords",
+    "file": "assets/rws/62.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Queen_of_Swords_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "Pamela Colman Smith",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  },
+  {
+    "id": 63,
+    "name": "宝剑国王",
+    "english": "King of Swords",
+    "file": "assets/rws/63.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:King_of_Swords_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "Pamela Colman Smith",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  },
+  {
+    "id": 64,
+    "name": "星币王牌",
+    "english": "One of Pentacles",
+    "file": "assets/rws/64.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:One_of_Pentacles_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "Pamela Colman Smith",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  },
+  {
+    "id": 65,
+    "name": "星币二",
+    "english": "Two of Pentacles",
+    "file": "assets/rws/65.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Two_of_Pentacles_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "Pamela Colman Smith",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  },
+  {
+    "id": 66,
+    "name": "星币三",
+    "english": "Three of Pentacles",
+    "file": "assets/rws/66.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Three_of_Pentacles_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "Pamela Colman Smith",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  },
+  {
+    "id": 67,
+    "name": "星币四",
+    "english": "Four of Pentacles",
+    "file": "assets/rws/67.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Four_of_Pentacles_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "Pamela Colman Smith",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  },
+  {
+    "id": 68,
+    "name": "星币五",
+    "english": "Five of Pentacles",
+    "file": "assets/rws/68.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Five_of_Pentacles_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "Pamela Colman Smith",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  },
+  {
+    "id": 69,
+    "name": "星币六",
+    "english": "Six of Pentacles",
+    "file": "assets/rws/69.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Six_of_Pentacles_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "Pamela Colman Smith",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  },
+  {
+    "id": 70,
+    "name": "星币七",
+    "english": "Seven of Pentacles",
+    "file": "assets/rws/70.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Seven_of_Pentacles_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "Pamela Colman Smith",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  },
+  {
+    "id": 71,
+    "name": "星币八",
+    "english": "Eight of Pentacles",
+    "file": "assets/rws/71.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Eight_of_Pentacles_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "Pamela Colman Smith",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  },
+  {
+    "id": 72,
+    "name": "星币九",
+    "english": "Nine of Pentacles",
+    "file": "assets/rws/72.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Nine_of_Pentacles_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "Pamela Colman Smith",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  },
+  {
+    "id": 73,
+    "name": "星币十",
+    "english": "Ten of Pentacles",
+    "file": "assets/rws/73.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Ten_of_Pentacles_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "Pamela Colman Smith",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  },
+  {
+    "id": 74,
+    "name": "星币侍从",
+    "english": "Page of Pentacles",
+    "file": "assets/rws/74.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Page_of_Pentacles_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "Pamela Colman Smith",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  },
+  {
+    "id": 75,
+    "name": "星币骑士",
+    "english": "Knight of Pentacles",
+    "file": "assets/rws/75.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Knight_of_Pentacles_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "Pamela Colman Smith",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  },
+  {
+    "id": 76,
+    "name": "星币皇后",
+    "english": "Queen of Pentacles",
+    "file": "assets/rws/76.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Queen_of_Pentacles_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "Pamela Colman Smith",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  },
+  {
+    "id": 77,
+    "name": "星币国王",
+    "english": "King of Pentacles",
+    "file": "assets/rws/77.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:King_of_Pentacles_(Rider-Waite_Smith_tarot_deck).png",
+    "license": "Public domain (Commons file metadata)",
+    "artist": "Pamela Colman Smith",
+    "size": [
+      456,
+      801
+    ],
+    "original_size": [
+      500,
+      857
+    ],
+    "image_edit": "Cropped outer white margins: 4.5% left/right, 3.3% top/bottom; original title band retained."
+  }
+]
