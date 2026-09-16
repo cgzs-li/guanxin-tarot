@@ -40,6 +40,20 @@ with connect() as c:
     c.execute('CREATE TABLE IF NOT EXISTS issued_codes (code_hash TEXT PRIMARY KEY)')
     c.execute('INSERT OR IGNORE INTO issued_codes SELECT code_hash FROM licenses')
 
+with connect() as c:
+    columns={row['name'] for row in c.execute('PRAGMA table_info(licenses)')}
+    if 'code_text' not in columns:c.execute("ALTER TABLE licenses ADD COLUMN code_text TEXT NOT NULL DEFAULT ''")
+    if 'issued_at' not in columns:
+        c.execute('ALTER TABLE licenses ADD COLUMN issued_at INTEGER NOT NULL DEFAULT 0')
+        c.execute('UPDATE licenses SET issued_at=created')
+    c.execute("CREATE TABLE IF NOT EXISTS code_history (id INTEGER PRIMARY KEY, license_id INTEGER NOT NULL, code_text TEXT NOT NULL, issued_at INTEGER NOT NULL, retired_at INTEGER NOT NULL)")
+
+with connect() as c:
+    columns={row['name'] for row in c.execute('PRAGMA table_info(licenses)')}
+    if 'expires_at' not in columns:
+        c.execute('ALTER TABLE licenses ADD COLUMN expires_at INTEGER NOT NULL DEFAULT 0')
+        c.execute('UPDATE licenses SET expires_at=activated+2592000 WHERE activated IS NOT NULL')
+
 def new_code(c):
     # Retired and disabled codes are never reused. Preserve leading zeroes.
     for _ in range(100):
@@ -83,22 +97,23 @@ class Handler(BaseHTTPRequestHandler):
         token=cookie_value(self.headers,'gx_device')
         if not token: return None
         with connect() as c:
-            return c.execute('SELECT * FROM licenses WHERE device_hash=? AND enabled=1',(digest(token),)).fetchone()
+            return c.execute('SELECT * FROM licenses WHERE device_hash=? AND enabled=1 AND (expires_at=0 OR expires_at>?)',(digest(token),int(time.time()))).fetchone()
     def set_cookie(self, name, token, age):
         return f'{name}={token}; HttpOnly; SameSite=Strict; Path=/; Max-Age={age}'
     def do_GET(self):
         if not self.host_ok(): return self.error(403,'本地测试服务不接受此地址')
         path=urlsplit(self.path).path
-        if self.server.role=='buyer' and (path=='/admin' or path.startswith('/api/admin/')):return self.error(404,'页面不存在')
-        if self.server.role=='admin' and path not in ['/','/admin','/api/admin/licenses']:return self.error(404,'页面不存在')
+        if self.server.role=='buyer' and (path in ['/admin','/records','/activations'] or path.startswith('/api/admin/')):return self.error(404,'页面不存在')
+        if self.server.role=='admin' and path not in ['/','/admin','/records','/activations','/api/admin/licenses']:return self.error(404,'页面不存在')
         if path=='/': return self.reply(200,(ROOT/('admin.html' if self.server.role=='admin' else 'login.html')).read_bytes(),'text/html; charset=utf-8')
-        if path=='/admin': return self.reply(200,(ROOT/'admin.html').read_bytes(),'text/html; charset=utf-8')
+        if path in ['/admin','/records','/activations']: return self.reply(200,(ROOT/'admin.html').read_bytes(),'text/html; charset=utf-8')
         if path=='/api/session': return self.reply(200,{'active':bool(self.license())})
         if path=='/api/admin/licenses':
             if not self.is_admin(): return self.error(401,'请先登录管理页')
             with connect() as c:
-                rows=c.execute('SELECT id,order_ref,created,activated,enabled,last_seen,visits,readings,device_label,last_device,denied_bindings,device_hash IS NOT NULL AS bound FROM licenses ORDER BY id DESC').fetchall()
-            return self.reply(200,{'licenses':[dict(r) for r in rows],'buyer_url':f'http://127.0.0.1:{self.server.buyer_port}/'})
+                rows=c.execute('SELECT id,order_ref,created,issued_at,code_text,activated,expires_at,enabled,last_seen,visits,readings,device_label,last_device,denied_bindings,device_hash IS NOT NULL AS bound FROM licenses ORDER BY id DESC').fetchall()
+            with connect() as c:history=[dict(r) for r in c.execute('SELECT h.*,l.order_ref FROM code_history h JOIN licenses l ON l.id=h.license_id ORDER BY h.id DESC')]
+            return self.reply(200,{'history':history,'licenses':[dict(r) for r in rows],'buyer_url':f'http://127.0.0.1:{self.server.buyer_port}/'})
         if path=='/app' or path.startswith('/assets/'):
             license=self.license()
             if not license: return self.error(401,'请先使用激活码登录')
@@ -159,6 +174,7 @@ class Handler(BaseHTTPRequestHandler):
                 c.execute('BEGIN IMMEDIATE')
                 row=c.execute('SELECT * FROM licenses WHERE code_hash=?',(digest(code),)).fetchone()
                 if not row or not row['enabled']: return self.error(401,'激活码无效或已停用')
+                if row['expires_at'] and row['expires_at']<=int(time.time()):return self.error(403,'激活码已到期，使用期为首次激活后30天')
                 if row['device_hash']:
                     if not token or not hmac.compare_digest(row['device_hash'],digest(token)):
                         c.execute('UPDATE licenses SET denied_bindings=denied_bindings+1 WHERE id=?',(row['id'],))
@@ -167,7 +183,7 @@ class Handler(BaseHTTPRequestHandler):
                 else:
                     if self.license(): return self.error(409,'此浏览器已有可用激活码，无需再次激活')
                     token=secrets.token_urlsafe(32)
-                    c.execute('UPDATE licenses SET device_hash=?,activated=?,device_label=?,last_device=?,last_seen=? WHERE id=?',(digest(token),int(time.time()),device_label(self.headers.get('User-Agent','')),device_label(self.headers.get('User-Agent','')),int(time.time()),row['id']))
+                    c.execute('UPDATE licenses SET device_hash=?,activated=COALESCE(activated,?),expires_at=CASE WHEN expires_at=0 THEN ? ELSE expires_at END,device_label=?,last_device=?,last_seen=? WHERE id=?',(digest(token),int(time.time()),int(time.time())+2592000,device_label(self.headers.get('User-Agent','')),device_label(self.headers.get('User-Agent','')),int(time.time()),row['id']))
             return self.reply(200,{'ok':True},cookie=self.set_cookie('gx_device',token,31536000))
         if path.startswith('/api/admin/'):
             if not self.is_admin(): return self.error(401,'请先登录管理页')
@@ -178,18 +194,19 @@ class Handler(BaseHTTPRequestHandler):
                     c.execute('BEGIN IMMEDIATE')
                     if c.execute('SELECT id FROM licenses WHERE order_ref=?',(ref,)).fetchone():return self.error(409,'此订单已生成激活码，请勿重复发码')
                     code=new_code(c)
-                    c.execute('INSERT INTO licenses(order_ref,code_hash,created) VALUES(?,?,?)',(ref,digest(code),int(time.time())))
+                    c.execute('INSERT INTO licenses(order_ref,code_hash,created,issued_at,code_text) VALUES(?,?,?,?,?)',(ref,digest(code),int(time.time()),int(time.time()),code))
                 return self.reply(200,{'code':code,'price':'9.9'})
             if path in ['/api/admin/reset','/api/admin/disable']:
                 try: ident=int(data.get('id'))
                 except (ValueError,TypeError):return self.error(400,'请选择有效记录')
                 with connect() as c:
                     c.execute('BEGIN IMMEDIATE')
-                    row=c.execute('SELECT id FROM licenses WHERE id=?',(ident,)).fetchone()
+                    row=c.execute('SELECT * FROM licenses WHERE id=?',(ident,)).fetchone()
                     if not row:return self.error(404,'记录不存在')
                     if path.endswith('reset'):
                         code=new_code(c)
-                        c.execute("UPDATE licenses SET code_hash=?,device_hash=NULL,activated=NULL,enabled=1,device_label='',last_device='' WHERE id=?",(digest(code),ident))
+                        c.execute('INSERT INTO code_history(license_id,code_text,issued_at,retired_at) VALUES(?,?,?,?)',(ident,row['code_text'],row['issued_at'],int(time.time())))
+                        c.execute("UPDATE licenses SET code_hash=?,code_text=?,issued_at=?,device_hash=NULL,enabled=1,device_label='',last_device='' WHERE id=?",(digest(code),code,int(time.time()),ident))
                     else:c.execute('UPDATE licenses SET enabled=0 WHERE id=?',(ident,))
                 return self.reply(200,{'ok':True,**({'code':code} if path.endswith('reset') else {})})
         return self.error(404,'接口不存在')
