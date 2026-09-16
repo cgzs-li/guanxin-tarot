@@ -1,5 +1,5 @@
 """Local-only activation trial. Do not expose this server directly to the Internet."""
-import argparse, hashlib, hmac, json, mimetypes, os, secrets, sqlite3, time
+import argparse, hashlib, hmac, json, mimetypes, os, secrets, sqlite3, time, threading
 from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -31,6 +31,27 @@ with connect() as c:
     for name in ['last_seen','visits','readings']:
         if name not in columns:c.execute(f'ALTER TABLE licenses ADD COLUMN {name} INTEGER NOT NULL DEFAULT 0')
     c.execute('CREATE TABLE IF NOT EXISTS usage_events (license_id INTEGER NOT NULL, event_id TEXT NOT NULL, PRIMARY KEY(license_id,event_id))')
+
+with connect() as c:
+    columns={row['name'] for row in c.execute('PRAGMA table_info(licenses)')}
+    for name in ['device_label','last_device']:
+        if name not in columns:c.execute(f"ALTER TABLE licenses ADD COLUMN {name} TEXT NOT NULL DEFAULT ''")
+    if 'denied_bindings' not in columns:c.execute('ALTER TABLE licenses ADD COLUMN denied_bindings INTEGER NOT NULL DEFAULT 0')
+    c.execute('CREATE TABLE IF NOT EXISTS issued_codes (code_hash TEXT PRIMARY KEY)')
+    c.execute('INSERT OR IGNORE INTO issued_codes SELECT code_hash FROM licenses')
+
+def new_code(c):
+    # Retired and disabled codes are never reused. Preserve leading zeroes.
+    for _ in range(100):
+        code=f'{secrets.randbelow(1000000):06d}'
+        try:c.execute('INSERT INTO issued_codes VALUES(?)',(digest(code),));return code
+        except sqlite3.IntegrityError:pass
+    raise RuntimeError('可用激活码不足，请联系管理员')
+
+def device_label(ua):
+    os_name=next((label for word,label in [('Android','Android'),('iPhone','iPhone / iOS'),('iPad','iPad / iPadOS'),('Windows','Windows'),('Macintosh','macOS / iPadOS'),('Linux','Linux')] if word in ua),'未知系统')
+    browser=next((label for word,label in [('MicroMessenger','微信内置浏览器'),('Edg/','Edge'),('EdgiOS','Edge'),('OPR/','Opera'),('CriOS','Chrome'),('Chrome/','Chrome'),('FxiOS','Firefox'),('Firefox/','Firefox'),('Safari/','Safari')] if word in ua),'未知浏览器')
+    return os_name+' · '+browser
 
 def cookie_value(headers, name):
     try:
@@ -68,14 +89,16 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         if not self.host_ok(): return self.error(403,'本地测试服务不接受此地址')
         path=urlsplit(self.path).path
-        if path=='/': return self.reply(200,(ROOT/'login.html').read_bytes(),'text/html; charset=utf-8')
+        if self.server.role=='buyer' and (path=='/admin' or path.startswith('/api/admin/')):return self.error(404,'页面不存在')
+        if self.server.role=='admin' and path not in ['/','/admin','/api/admin/licenses']:return self.error(404,'页面不存在')
+        if path=='/': return self.reply(200,(ROOT/('admin.html' if self.server.role=='admin' else 'login.html')).read_bytes(),'text/html; charset=utf-8')
         if path=='/admin': return self.reply(200,(ROOT/'admin.html').read_bytes(),'text/html; charset=utf-8')
         if path=='/api/session': return self.reply(200,{'active':bool(self.license())})
         if path=='/api/admin/licenses':
             if not self.is_admin(): return self.error(401,'请先登录管理页')
             with connect() as c:
-                rows=c.execute('SELECT id,order_ref,created,activated,enabled,last_seen,visits,readings,device_hash IS NOT NULL AS bound FROM licenses ORDER BY id DESC').fetchall()
-            return self.reply(200,{'licenses':[dict(r) for r in rows]})
+                rows=c.execute('SELECT id,order_ref,created,activated,enabled,last_seen,visits,readings,device_label,last_device,denied_bindings,device_hash IS NOT NULL AS bound FROM licenses ORDER BY id DESC').fetchall()
+            return self.reply(200,{'licenses':[dict(r) for r in rows],'buyer_url':f'http://127.0.0.1:{self.server.buyer_port}/'})
         if path=='/app' or path.startswith('/assets/'):
             license=self.license()
             if not license: return self.error(401,'请先使用激活码登录')
@@ -101,6 +124,7 @@ class Handler(BaseHTTPRequestHandler):
             if not isinstance(data,dict): raise ValueError()
         except (ValueError,TypeError): return self.error(400,'请求内容不正确')
         path=urlsplit(self.path).path
+        if (self.server.role=='buyer' and path.startswith('/api/admin/')) or (self.server.role=='admin' and not path.startswith('/api/admin/')):return self.error(404,'接口不存在')
         if path=='/api/usage':
             license=self.license()
             if not license:return self.error(401,'授权已失效，请重新激活或联系卖家')
@@ -110,7 +134,7 @@ class Handler(BaseHTTPRequestHandler):
             if event=='reading' and (not isinstance(event_id,str) or len(event_id)!=32 or any(ch not in '0123456789abcdef' for ch in event_id)):
                 return self.error(400,'事件编号不正确')
             with connect() as c:
-                c.execute('UPDATE licenses SET last_seen=? WHERE id=?',(int(time.time()),license['id']))
+                c.execute('UPDATE licenses SET last_seen=?,last_device=? WHERE id=?',(int(time.time()),device_label(self.headers.get('User-Agent','')),license['id']))
                 if event=='reading':
                     cur=c.execute('INSERT OR IGNORE INTO usage_events VALUES(?,?)',(license['id'],event_id))
                     if cur.rowcount:c.execute('UPDATE licenses SET readings=readings+1 WHERE id=?',(license['id'],))
@@ -137,36 +161,43 @@ class Handler(BaseHTTPRequestHandler):
                 if not row or not row['enabled']: return self.error(401,'激活码无效或已停用')
                 if row['device_hash']:
                     if not token or not hmac.compare_digest(row['device_hash'],digest(token)):
+                        c.execute('UPDATE licenses SET denied_bindings=denied_bindings+1 WHERE id=?',(row['id'],))
+                        c.commit()
                         return self.error(409,'此码已绑定其他浏览器。换设备或清除数据后，请联系卖家重置。')
                 else:
                     if self.license(): return self.error(409,'此浏览器已有可用激活码，无需再次激活')
                     token=secrets.token_urlsafe(32)
-                    c.execute('UPDATE licenses SET device_hash=?,activated=? WHERE id=?',(digest(token),int(time.time()),row['id']))
+                    c.execute('UPDATE licenses SET device_hash=?,activated=?,device_label=?,last_device=?,last_seen=? WHERE id=?',(digest(token),int(time.time()),device_label(self.headers.get('User-Agent','')),device_label(self.headers.get('User-Agent','')),int(time.time()),row['id']))
             return self.reply(200,{'ok':True},cookie=self.set_cookie('gx_device',token,31536000))
         if path.startswith('/api/admin/'):
             if not self.is_admin(): return self.error(401,'请先登录管理页')
             if path=='/api/admin/create':
                 ref=str(data.get('order_ref','')).strip()
                 if not ref or len(ref)>100 or data.get('paid') is not True: return self.error(400,'填写订单标记，并确认已收到9.9元')
-                code='GX-'+secrets.token_hex(16).upper()
-                try:
-                    with connect() as c:c.execute('INSERT INTO licenses(order_ref,code_hash,created) VALUES(?,?,?)',(ref,digest(code),int(time.time())))
-                except sqlite3.IntegrityError:return self.error(409,'此订单已生成激活码，请勿重复发码')
+                with connect() as c:
+                    c.execute('BEGIN IMMEDIATE')
+                    if c.execute('SELECT id FROM licenses WHERE order_ref=?',(ref,)).fetchone():return self.error(409,'此订单已生成激活码，请勿重复发码')
+                    code=new_code(c)
+                    c.execute('INSERT INTO licenses(order_ref,code_hash,created) VALUES(?,?,?)',(ref,digest(code),int(time.time())))
                 return self.reply(200,{'code':code,'price':'9.9'})
             if path in ['/api/admin/reset','/api/admin/disable']:
                 try: ident=int(data.get('id'))
                 except (ValueError,TypeError):return self.error(400,'请选择有效记录')
                 with connect() as c:
+                    c.execute('BEGIN IMMEDIATE')
                     row=c.execute('SELECT id FROM licenses WHERE id=?',(ident,)).fetchone()
                     if not row:return self.error(404,'记录不存在')
                     if path.endswith('reset'):
-                        code='GX-'+secrets.token_hex(16).upper()
-                        c.execute('UPDATE licenses SET code_hash=?,device_hash=NULL,activated=NULL,enabled=1 WHERE id=?',(digest(code),ident))
+                        code=new_code(c)
+                        c.execute("UPDATE licenses SET code_hash=?,device_hash=NULL,activated=NULL,enabled=1,device_label='',last_device='' WHERE id=?",(digest(code),ident))
                     else:c.execute('UPDATE licenses SET enabled=0 WHERE id=?',(ident,))
                 return self.reply(200,{'ok':True,**({'code':code} if path.endswith('reset') else {})})
         return self.error(404,'接口不存在')
 
 if __name__=='__main__':
-    parser=argparse.ArgumentParser();parser.add_argument('--port',type=int,default=8770);args=parser.parse_args()
-    print(f'Buyer: http://127.0.0.1:{args.port}/\nAdmin: http://127.0.0.1:{args.port}/admin\nAdmin password file: {ADMIN_FILE}',flush=True)
-    ThreadingHTTPServer(('127.0.0.1',args.port),Handler).serve_forever()
+    parser=argparse.ArgumentParser();parser.add_argument('--port',type=int,default=8771);parser.add_argument('--admin-port',type=int,default=8772);args=parser.parse_args()
+    buyer=ThreadingHTTPServer(('127.0.0.1',args.port),Handler);buyer.role='buyer';buyer.buyer_port=args.port
+    admin=ThreadingHTTPServer(('127.0.0.1',args.admin_port),Handler);admin.role='admin';admin.buyer_port=args.port
+    print(f'Buyer: http://127.0.0.1:{args.port}/\nAdmin: http://127.0.0.1:{args.admin_port}/\nAdmin password file: {ADMIN_FILE}',flush=True)
+    threading.Thread(target=admin.serve_forever,daemon=True).start()
+    buyer.serve_forever()
