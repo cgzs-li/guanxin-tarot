@@ -21,3 +21,11 @@
 ## 图片来源
 
 传统 Rider–Waite–Smith 牌组，Pamela Colman Smith 绘制，Wikimedia Commons Geldard 分类。各文件元数据标记 Public domain；本项目缩放并裁除外圈白边。逐张来源见 `牌图来源.json`。
+
+## 本地激活码后台
+
+backend目录包含Python本地后台。运行 `python backend/server.py`，买家入口为 http://127.0.0.1:8770/ ，管理页为 http://127.0.0.1:8770/admin 。
+首次运行自动生成管理员口令，保存于backend/data/admin-password.txt，勿发给买家或上传。
+支持人工核单发码、首次浏览器绑定、重置换码、停用，以及按订单查看激活时间、最近活跃、访问次数和阅读解读次数。不上传用户问题或解读正文。
+统计来自访问与客户端事件，断网可能漏报，不作为财务数据。目前只在本地运行，未开放外网，无支付接口。GitHub Pages仍为公开免费版，不是付费入口；工作流不会发布backend目录。
+详细步骤见 [后台使用说明](backend/使用说明.md)。

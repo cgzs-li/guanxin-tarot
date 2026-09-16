@@ -1,2 +1,9 @@
 .DS_Store
 Thumbs.db
+
+**/data/
+**/__pycache__/
+*.sqlite3
+*.sqlite3-*
+.env
+.env.*
