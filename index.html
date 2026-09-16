@@ -22,9 +22,9 @@ dialog:not([open]){display:none}
 dialog.compat-dialog[open]{display:block;position:fixed;inset:50% auto auto 50%;transform:translate(-50%,-50%);margin:0;z-index:1001;max-height:85vh;overflow:auto;-webkit-overflow-scrolling:touch;box-shadow:0 0 0 100vmax #09060ee0}
 body.dialog-visible{overflow:hidden}
 body.dialog-visible>header,body.dialog-visible>main,body.dialog-visible>footer{pointer-events:none}
-</style>
+#access-gate{max-width:520px;margin:64px auto;padding:28px}#access-gate h1{font-size:40px}#access-gate p,#access-gate small{color:var(--muted)}#access-gate .access-kicker{color:var(--gold);font-size:12px;letter-spacing:3px}#access-form{margin:28px 0}#access-form label{display:block;margin-bottom:10px}#access-code{width:100%;min-height:54px;background:var(--surface);border:1px solid var(--line);border-radius:6px;color:var(--ink);font:inherit;font-size:24px;line-height:1.5;letter-spacing:6px;padding:12px;margin-bottom:20px}#access-code:focus{outline:2px solid var(--gold)}#access-form button{width:100%}#access-message{min-height:28px;color:#ffb6ae!important}@media(max-width:600px){#access-gate{margin:28px auto;padding:24px}#access-gate h1{font-size:36px}}</style>
 </head>
-<body>
+<body><section id="access-gate" aria-labelledby="access-title"><p class="access-kicker">GUAN XIN · TAROT</p><h1 id="access-title">留一点时间，<br>听见自己。</h1><p>输入共享体验码，开始这次探索。</p><form id="access-form"><label for="access-code">6 位体验码</label><input id="access-code" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required placeholder="请输入6位数字" aria-describedby="access-message"><button class="primary" type="submit">进入免费体验 →</button><p id="access-message" role="status"></p></form><small>免费体验 · 无需支付 · 无需注册<br>所有体验者共用一个码，仅作为入口提示，不绑定设备。<br>仅供娱乐与自我反思。</small></section><div id="experience-app" hidden>
 <header><div class="brand"><svg viewBox="0 0 32 40" fill="none" stroke="currentColor" aria-hidden="true"><path d="M16 1v38M1 20h30M16 5 27 20 16 35 5 20Z"/><circle cx="16" cy="20" r="5"/></svg><div>观心<small>GUAN XIN · TAROT</small></div></div><div class="header-tools"><div class="header-note">留一点时间，听见自己。</div><button class="nav-library" id="nav-library">牌义图书馆 ↗</button></div></header>
 <main><ol class="journey" aria-label="探索进度"><li aria-current="step"><b>01</b> 写下问题</li><li><b>02</b> 梳理背景</li><li><b>03</b> 抽取卡牌</li><li><b>04</b> 阅读启发</li></ol>
 <section class="intro" id="home">
@@ -257,4 +257,12 @@ document.addEventListener('keydown',event=>{
  }
 });
 </script>
-</body></html>
+</div><script>
+// Shared free-preview gate, not authentication. No backend or payment required.
+const FREE_PREVIEW_CODE='641320';
+document.getElementById('access-form').addEventListener('submit',event=>{
+ event.preventDefault();const field=document.getElementById('access-code');
+ if(field.value.trim()!==FREE_PREVIEW_CODE){document.getElementById('access-message').textContent='体验码不正确，请检查后再试。';field.setAttribute('aria-invalid','true');field.focus();return;}
+ field.removeAttribute('aria-invalid');document.getElementById('access-message').textContent='';document.getElementById('access-gate').hidden=true;document.getElementById('experience-app').hidden=false;window.scrollTo(0,0);document.getElementById('user-question').focus({preventScroll:true});
+});
+</script></body></html>
