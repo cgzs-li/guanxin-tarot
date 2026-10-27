@@ -7,7 +7,7 @@ import urllib.request
 from pathlib import Path
 
 BASE = 'https://tarot.ruichi0201.cn'
-report = {'url': BASE, 'mode': 'commerce-demo', 'checks': []}
+report = {'url': BASE, 'mode': 'paid-manual', 'checks': []}
 
 def check(path, expected=200, payload=None):
     request = urllib.request.Request(BASE + path,
@@ -29,15 +29,18 @@ try:
     assert 'assets/commerce.js' in html and '免费本地解读' in html
     assert len(json.loads(re.search(r'const spreads=(\[.*?\]);', html).group(1))) == 26
     assert len(json.loads(re.search(r'const cardLibrary=(\[.*?\]);', html).group(1))) == 78
-    assert check('/api/status') == {'configured': False, 'mode': 'demo', 'real_ai_available': False}
+    status = check('/api/status')
+    assert status['mode'] == 'paid' and status['configured'] is True and status['real_ai_available'] is True and status['payment_mode'] == 'manual'
     catalog = check('/api/catalog')
     prices = {p['id']: p['price'] for p in catalog['products']}
     assert all(prices[k] == v for k, v in {'single-1': 190, 'triple-1': 390, 'complex-1': 990, 'monthly': 2990}.items())
     assert check('/api/account/me')['user'] is None
     jobs = [(p, 402, {}) for p in ['/api/polish', '/api/intake-questions', '/api/recommend-spread', '/api/reading', '/api/followup']]
-    jobs += [('/api/free/reading', 401, {}), ('/api/demo/checkout', 401, {})]
+    jobs += [(p, 401, {}) for p in ['/api/free/reading', '/api/paid/reading', '/api/paid/followup', '/api/order']]
+    jobs += [(p, 410, {}) for p in ['/api/demo/checkout', '/api/demo/reading']]
+    jobs += [(p, 403, {}) for p in ['/api/admin/order', '/api/admin/confirm']]
     jobs += [(p, 404, None) for p in ['/config.local.json', '/llm-backend/config.local.json', '/.dev.vars', '/worker/commerce.js']]
-    jobs += [(p, 200, None) for p in ['/assets/commerce.js', '/assets/commerce.css']]
+    jobs += [(p, 200, None) for p in ['/assets/commerce.js', '/assets/commerce.css', '/assets/admin.html', '/assets/admin.js']]
     with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
         list(pool.map(lambda job: check(*job), jobs))
     report['passed'] = True

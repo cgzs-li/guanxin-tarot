@@ -83,21 +83,21 @@ export default {
         { status: 503, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } });
     }
     if (url.pathname === '/api/status' && request.method === 'GET')
-      return json({ configured: false, mode: 'demo', real_ai_available: false });
+      return json({ configured: enabled(env.GUANXIN_AI_ENABLED) && Boolean(env.FLOWBEE_API_KEY && env.FLOWBEE_MODEL), mode: 'paid', payment_mode: 'manual', real_ai_available: enabled(env.GUANXIN_AI_ENABLED) && Boolean(env.FLOWBEE_API_KEY && env.FLOWBEE_MODEL) });
     if (url.pathname === '/api/catalog' && request.method === 'GET')
-      return json({ mode: 'demo', products, real_ai_available: false });
+      return json({ mode: 'paid', products, payment_mode: 'manual' });
     if (url.pathname.startsWith('/api/')) {
+      if (url.pathname.startsWith('/api/demo/')) return json({ error: '演示接口已停用，请使用正式套餐。' }, 410);
       if (!routes.has(url.pathname) && !commercePaths.has(url.pathname)) return json({ error: '接口不存在。' }, 404);
       const accountGet = url.pathname === '/api/account/me' && request.method === 'GET';
       if (!accountGet && request.method !== 'POST') return json({ error: '请使用 POST 请求。' }, 405);
       if (url.pathname === '/api/account/me' && !accountGet) return json({ error: '请使用 GET 请求。' }, 405);
       if (!accountGet && request.headers.get('Origin') !== url.origin) return json({ error: '请从当前网站提交。' }, 403);
       if (!accountGet && request.headers.get('Content-Type')?.split(';')[0].trim() !== 'application/json') return json({ error: '请使用 JSON 请求。' }, 415);
-      // Until a verified payment provider is connected, no public request can
-      // reach a real model. Demo checkout only grants separate demo balances.
-      if (routes.has(url.pathname)) return json({ error: 'AI 为付费功能，目前尚未开通真实收款。可体验明确标注的付费功能演示。' }, 402);
+      // Model access is available only through authenticated paid endpoints.
+      if (routes.has(url.pathname)) return json({ error: 'AI 为付费功能，请先登录并充值对应套餐。' }, 402);
       const id = env.AI_GATEWAY.idFromName('guanxin-experience');
-      const headers = { 'Content-Type': 'application/json', 'X-Visitor-IP': request.headers.get('CF-Connecting-IP') || 'unknown', Cookie: request.headers.get('Cookie') || '' };
+      const headers = { 'Content-Type': 'application/json', 'X-Visitor-IP': request.headers.get('CF-Connecting-IP') || 'unknown', Cookie: request.headers.get('Cookie') || '', 'X-Admin-Key': request.headers.get('X-Admin-Key') || '' };
       return env.AI_GATEWAY.get(id).fetch(new Request('https://gateway.internal' + url.pathname,
         { method: accountGet ? 'GET' : 'POST', headers, ...(accountGet ? {} : { body: request.body, duplex: 'half' }) }));
     }
@@ -116,12 +116,11 @@ export default {
   }
 };
 
-// The named object persists accounts and demo rights separately from model
-// request counters. Legacy model methods remain internal for later integration.
+// Accounts, orders and paid reservations persist independently of model limits.
 export class AIGateway {
   constructor(state, env) {
     this.env = env; this.calls = []; this.active = 0; this.busy = new Set();
-    this.commerce = new Commerce(state, buildContext);
+    this.commerce = new Commerce(state, buildContext, this);
   }
   async fetch(request) {
     try {

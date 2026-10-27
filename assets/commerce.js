@@ -1,5 +1,5 @@
-// Public commerce demo: authenticated local trial and separately labelled demo rights.
-const commerce = { account: null, products: [], mode: 'free', requestId: '', demoData: null,
+// Authenticated local trial and manually confirmed paid AI access.
+const commerce = { account: null, products: [], mode: 'free', requestId: '', paidData: null,
   busy: false, flow: 0, order: null, cartId: '', cartProduct: '', afterAuth: null };
 const money = cents => (cents / 100).toFixed(1).replace(/\.0$/, '');
 const tierName = { single: '单张', triple: '三张', complex: '复杂牌阵', monthly: '月卡' };
@@ -10,7 +10,7 @@ function commercePayload() {
     option_a: selectedSpread.category === '选择' ? optionA : '', option_b: selectedSpread.category === '选择' ? optionB : '' };
 }
 async function commerceAPI(path, data) {
-  const controller = new AbortController(), timer = setTimeout(() => controller.abort(), 20000);
+  const controller = new AbortController(), timer = setTimeout(() => controller.abort(), 95000);
   try {
     const response = await fetch(path, { ...(data === undefined ? {} : { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }),
       credentials: 'same-origin', cache: 'no-store', signal: controller.signal });
@@ -27,14 +27,14 @@ function switchReadingMode(mode) {
   document.querySelectorAll('[name="reading-mode"]').forEach(r => { r.checked = r.value === mode; });
   $('reading-mode-help').textContent = mode === 'free'
     ? '每个账号有 1 次完整本地解读。不会调用 AI，点击阅读并成功生成后才使用机会。'
-    : '先模拟选择套餐，再体验示例解读与追问。全程不扣款，不调用真实 AI。';
-  $('start').textContent = mode === 'free' ? '开始我的免费体验 ↗' : '开始付费功能演示 ↗';
+    : '充值后使用真实 AI 解读。问题、背景及牌面会发送给模型服务；成功生成后使用 1 次对应权益。';
+  $('start').textContent = mode === 'free' ? '开始我的免费体验 ↗' : '开始 AI 解读 ↗';
   updateChargeNote();
 }
 function updateChargeNote() {
   $('reading-charge-note').textContent = commerce.mode === 'free'
     ? '本次为免费本地解读 · 成功生成后使用 1 次免费机会，不含 AI。'
-    : '本次为付费功能演示 · 成功展示示例后使用对应牌阵 1 次演示权益，未实际收款。';
+    : '本次为付费 AI 解读 · 成功生成后使用对应牌阵 1 次权益，模型失败不扣次。';
 }
 function showAuth(tab = 'login', after) {
   if (after) commerce.afterAuth = after;
@@ -66,20 +66,20 @@ function setAccount(data) {
   if (!data?.user) return;
   $('member-name').textContent = data.user.name;
   $('member-free').textContent = free ? '1 次 · 不含 AI' : '已使用';
-  const demo = data.demo, activeMember = demo.member_until > Date.now();
-  $('member-balances').textContent = '单张 ' + demo.balance.single + ' 次 · 三张 ' + demo.balance.triple + ' 次 · 复杂牌阵 ' + demo.balance.complex + ' 次';
+  const paid = data.paid, activeMember = paid.member_until > Date.now();
+  $('member-balances').textContent = '单张 ' + paid.balance.single + ' 次 · 三张 ' + paid.balance.triple + ' 次 · 复杂牌阵 ' + paid.balance.complex + ' 次';
   $('member-monthly').textContent = activeMember
-    ? '演示月卡有效至 ' + new Date(demo.member_until).toLocaleDateString('zh-CN', { timeZone: 'Asia/Shanghai' }) +
-      '；今日剩余：单张 ' + demo.remaining_today.single + '、三张 ' + demo.remaining_today.triple + '、复杂阵 ' + demo.remaining_today.complex
-    : '暂未开通演示月卡';
+    ? '月卡有效至 ' + new Date(paid.member_until).toLocaleDateString('zh-CN', { timeZone: 'Asia/Shanghai' }) +
+      '；今日剩余：单张 ' + paid.remaining_today.single + '、三张 ' + paid.remaining_today.triple + '、复杂阵 ' + paid.remaining_today.complex
+    : '暂未开通月卡';
   const list = $('member-orders'); list.replaceChildren();
   for (const order of data.orders || []) {
     const li = document.createElement('li');
-    li.textContent = order.title + ' · ¥' + money(order.price) + ' · ' + (order.status === 'demo_completed' ? '已模拟完成，未扣款' : '待模拟确认') +
+    li.textContent = order.title + ' · ¥' + money(order.price) + ' · ' + (order.status === 'paid' ? '已收款开通' : '待收款确认') +
       ' · ' + new Date(order.created).toLocaleDateString('zh-CN', { timeZone: 'Asia/Shanghai' });
     list.append(li);
   }
-  if (!list.childElementCount) { const li = document.createElement('li'); li.textContent = '还没有演示订单。'; list.append(li); }
+  if (!list.childElementCount) { const li = document.createElement('li'); li.textContent = '还没有订单。'; list.append(li); }
 }
 async function refreshAccount() {
   const data = await commerceAPI('/api/account/me');
@@ -124,12 +124,12 @@ async function readCommercial() {
   commerce.busy = true; $('read').disabled = true; $('reset').disabled = true;
   $('read').textContent = '正在整理本次解读…'; $('session-error').textContent = '';
   try {
-    const data = await commerceAPI(commerce.mode === 'free' ? '/api/free/reading' : '/api/demo/reading', commercePayload());
+    const data = await commerceAPI(commerce.mode === 'free' ? '/api/free/reading' : '/api/paid/reading', commercePayload());
     if (version !== commerce.flow) return;
     if (data.account) setAccount(data.account);
-    commerce.demoData = data.simulated ? data : null;
+    commerce.paidData = data.answer ? data : null;
     showLocalReading();
-    $('reading-result-label').textContent = data.simulated ? '付费功能演示 · 示例由本地牌义组织，不是 AI 回答' : '免费本地解读 · 未使用 AI';
+    $('reading-result-label').textContent = data.answer ? 'AI 综合解读 · 已使用付费权益' : '免费本地解读 · 未使用 AI';
     await prepareAI();
   } catch (error) {
     if (version !== commerce.flow) return;
@@ -143,36 +143,34 @@ async function readCommercial() {
 }
 function commercePrepareAI() {
   resetAI(); $('ai-panel').hidden = false;
-  $('ai-consent').textContent = '当前为付费流程演示，不实际扣款，也不会把你的问题发给大模型。正式 AI 服务尚未开放。';
-  $('ai-title').textContent = commerce.demoData ? '这是一次付费功能演示。' : '想进一步梳理这个问题？';
-  $('ai-generate').disabled = Boolean(commerce.demoData);
-  $('ai-generate').textContent = commerce.demoData ? '示例解读已展示' : '查看 AI 套餐（演示）';
-  $('ai-panel').querySelector('.ai-intro').textContent = commerce.demoData
-    ? '以下内容用于体验解读、权益与追问流程，示例以本地牌义组织。'
-    : 'AI 解读与追问为付费功能。你可以先了解套餐，免费解读仍可在下方阅读。';
-  if (commerce.demoData) {
-    aiSession = commerce.demoData.session_id;
-    aiMessage('assistant', commerce.demoData.answer);
-    $('ai-followup-form').hidden = commerce.demoData.followup_remaining <= 0;
-    $('ai-followup-help').textContent = '演示追问 · 还可问 ' + commerce.demoData.followup_remaining + ' 轮；沿用同一组牌。不会调用真实 AI。';
+  $('ai-consent').textContent = 'AI 解读会将本次问题、背景、牌面及有限对话发送给模型服务。回答仅作参考，请结合现实判断。';
+  $('ai-title').textContent = commerce.paidData ? '结合你的问题，再往前看一步。' : '需要结合背景的 AI 解读？';
+  $('ai-generate').disabled = Boolean(commerce.paidData);
+  $('ai-generate').textContent = commerce.paidData ? 'AI 解读已生成' : '使用付费 AI 解读';
+  $('ai-panel').querySelector('.ai-intro').textContent = commerce.paidData ? '以下为大模型针对本次问题和固定牌面的回答。' : '本地免费解读已完成。AI 解读和追问需先充值，可沿用当前这组牌。';
+  if (commerce.paidData) {
+    aiSession = commerce.paidData.session_id;
+    aiMessage('assistant', commerce.paidData.answer);
+    $('ai-followup-form').hidden = commerce.paidData.followup_remaining <= 0;
+    $('ai-followup-help').textContent = '还可追问 ' + commerce.paidData.followup_remaining + ' 轮；沿用同一组牌。';
   }
-  aiStatus(commerce.demoData ? '演示完成，未实际扣款，未调用大模型。' : '免费本地解读已完成。AI 服务将在接入真实支付后开放。');
+  aiStatus(commerce.paidData ? 'AI 解读已生成；本地牌义仍可在下方对照。' : '每账号只有一次免费本地解读。继续解读或使用 AI 需要充值。');
 }
 async function commerceFollowup(payload) {
   const version = aiVersion, controller = new AbortController();
   aiController = controller; $('ai-send').disabled = true; $('ai-followup').readOnly = true;
-  $('ai-panel').setAttribute('aria-busy', 'true'); aiStatus('正在展示追问示例…');
+  $('ai-panel').setAttribute('aria-busy', 'true'); aiStatus('AI 正在回答…');
   if (!commerce.followupId || commerce.followupMessage !== payload.message) {
     commerce.followupId = crypto.randomUUID(); commerce.followupMessage = payload.message;
   }
   try {
-    const data = await commerceAPI('/api/demo/followup', { ...payload, request_id: commerce.followupId });
+    const data = await commerceAPI('/api/paid/followup', { ...payload, request_id: commerce.followupId });
     if (version !== aiVersion) return;
     aiMessage('user', payload.message); aiMessage('assistant', data.answer);
     $('ai-followup').value = ''; commerce.followupId = '';
-    $('ai-followup-help').textContent = '演示追问剩余 ' + data.followup_remaining + ' 轮。示例不是大模型回答。';
+    $('ai-followup-help').textContent = '本次追问剩余 ' + data.followup_remaining + ' 轮。';
     $('ai-followup-form').hidden = data.followup_remaining <= 0;
-    aiStatus(data.followup_remaining > 0 ? '追问示例已展示，未调用大模型。' : '本次演示追问已用完，完整示例仍可阅读。');
+    aiStatus(data.followup_remaining > 0 ? 'AI 已回复，可以继续追问。' : '本次追问已用完，完整解读仍可阅读。');
   } catch (error) {
     if (version !== aiVersion) return;
     aiStatus(error.message, true);
@@ -184,18 +182,18 @@ async function commerceFollowup(payload) {
 document.querySelectorAll('[name="reading-mode"]').forEach(input => input.addEventListener('change', () => switchReadingMode(input.value)));
 $('start').addEventListener('click', event => {
   if (!$('user-question').value.trim()) return;
-  if (!commerce.account || (commerce.mode === 'free' && !commerce.account.free_remaining)) {
+  if (!commerce.account || (commerce.mode === 'free' && !commerce.account.free_remaining) || (commerce.mode === 'paid' && !hasPaidAccess())) {
     event.stopImmediatePropagation(); event.preventDefault();
     if (!commerce.account) showAuth('register');
-    else { $('input-error').textContent = '免费本地解读已使用。可以选择付费功能演示，或继续浏览牌义。'; openPlans(); }
+    else { if (commerce.mode === 'free') switchReadingMode('paid'); $('input-error').textContent = '免费本地解读已使用，继续解读请先充值。'; openPlans(); }
   }
 }, true);
 $('begin-draw').addEventListener('click', () => {
   if ($('session').hidden) return;
-  commerce.requestId = crypto.randomUUID(); commerce.demoData = null; commerce.flow++; commerce.followupId = '';
+  commerce.requestId = crypto.randomUUID(); commerce.paidData = null; commerce.flow++; commerce.followupId = '';
   $('session-error').textContent = ''; $('reading-result-label').textContent = ''; updateChargeNote();
 });
-$('reset').addEventListener('click', () => { commerce.flow++; commerce.demoData = null; });
+$('reset').addEventListener('click', () => { commerce.flow++; commerce.paidData = null; });
 $('plans-open').addEventListener('click', openPlans);
 $('plans-inline').addEventListener('click', openPlans);
 $('member-plans').addEventListener('click', openPlans);
@@ -222,7 +220,7 @@ $('auth-form').addEventListener('submit', async event => {
 $('account-logout').addEventListener('click', async () => {
   $('account-logout').disabled = true;
   try {
-    await commerceAPI('/api/account/logout', {}); setAccount(null); resetAI(); commerce.flow++; commerce.demoData = null;
+    await commerceAPI('/api/account/logout', {}); setAccount(null); resetAI(); commerce.flow++; commerce.paidData = null;
     $('home').hidden = false; $('intake').hidden = true; $('session').hidden = true; $('results').replaceChildren();
     $('user-question').value = ''; $('user-question').dispatchEvent(new Event('input')); intakeAnswers = []; intakeDraftKey = '';
     setJourney(0); closeDialog($('account-dialog'));
@@ -236,14 +234,14 @@ $('create-order').addEventListener('click', async () => {
   if (!commerce.account) {
     closeDialog($('plans-dialog')); showAuth('register', openPlans); return;
   }
-  $('create-order').disabled = true; $('plans-status').textContent = '正在生成演示订单…';
+  $('create-order').disabled = true; $('plans-status').textContent = '正在生成订单…';
   try {
     if (!commerce.cartId || commerce.cartProduct !== product.id) { commerce.cartId = crypto.randomUUID(); commerce.cartProduct = product.id; }
-    const data = await commerceAPI('/api/demo/order', { product_id: product.id, request_id: commerce.cartId });
+    const data = await commerceAPI('/api/order', { product_id: product.id, request_id: commerce.cartId });
     commerce.order = data.order;
     $('checkout-name').textContent = data.order.title; $('checkout-price').textContent = '¥' + money(data.order.price);
     $('checkout-id').textContent = data.order.id;
-    $('checkout-status').textContent = ''; $('confirm-demo-payment').hidden = false; $('checkout-return').hidden = true;
+    $('checkout-status').textContent = ''; $('refresh-payment').hidden = false; $('checkout-return').hidden = true;
     $('checkout-panel').hidden = false; $('plans-selection').hidden = true; $('checkout-title').focus();
   } catch (error) {
     $('plans-status').textContent = error.message;
@@ -251,27 +249,24 @@ $('create-order').addEventListener('click', async () => {
   } finally { $('create-order').disabled = false; }
 });
 $('checkout-back').addEventListener('click', () => { $('checkout-panel').hidden = true; $('plans-selection').hidden = false; $('plans-status').textContent = ''; });
-$('confirm-demo-payment').addEventListener('click', async () => {
+$('refresh-payment').addEventListener('click', async () => {
   if (!commerce.order) return;
-  $('confirm-demo-payment').disabled = true; $('checkout-status').textContent = '正在确认演示订单…';
+  $('refresh-payment').disabled = true; $('checkout-status').textContent = '正在查询到账状态…';
   try {
-    const result = await commerceAPI('/api/demo/checkout', { order_id: commerce.order.id });
+    const result = await commerceAPI('/api/order/status', { order_id: commerce.order.id });
     setAccount(result.account);
-    $('checkout-status').textContent = '已模拟完成，未扣款。演示权益已到账，可体验示例解读与追问，不包含真实 AI。';
-    $('confirm-demo-payment').hidden = true; $('checkout-return').hidden = false;
-    switchReadingMode('demo');
-    const product = commerce.products.find(p => p.id === commerce.order.productId);
-    if (!$('session').hidden) {
-      $('checkout-return').textContent = '返回当前抽牌';
-    } else if (product && product.tier !== 'monthly') {
-      selectedSpread = spreads.find(s => s.id === ({ single: 'single', triple: 'basic', complex: 'celtic' })[product.tier]);
-      spreadDraftKey = theme + '|' + $('user-question').value.trim();
+    if (result.order.status !== 'paid') {
+      $('checkout-status').textContent = '暂未确认收款。请将订单号发给向你分享网站的负责人，核对收款对象和金额；确认到账后由管理员开通。页面不会自动扣款。';
+      return;
     }
-    commerce.cartId = '';
+    $('checkout-status').textContent = '管理员已确认收款，付费权益已到账。';
+    $('refresh-payment').hidden = true; $('checkout-return').hidden = false;
+    $('checkout-return').textContent = $('session').hidden ? '返回，开始 AI 解读' : '返回当前抽牌';
+    switchReadingMode('paid'); commerce.cartId = '';
   } catch (error) { $('checkout-status').textContent = error.message; }
-  finally { $('confirm-demo-payment').disabled = false; }
+  finally { $('refresh-payment').disabled = false; }
 });
-$('checkout-return').addEventListener('click', () => closeDialog($('plans-dialog')));
+$('checkout-return').addEventListener('click', () => { closeDialog($('plans-dialog')); if (!$('session').hidden && !$('results').hidden && !commerce.paidData) readCommercial(); });
 $('share-site').addEventListener('click', async () => {
   const url = 'https://tarot.ruichi0201.cn/?from=share';
   try {
@@ -293,3 +288,8 @@ Promise.allSettled([
   }
 });
 
+
+function hasPaidAccess() {
+  const paid = commerce.account?.paid;
+  return Boolean(paid && (Object.values(paid.balance).some(n => n > 0) || (paid.remaining_today && Object.values(paid.remaining_today).some(n => n > 0))));
+}

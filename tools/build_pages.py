@@ -10,6 +10,6 @@ public.mkdir(exist_ok=True)
 <body style="background:#121016;color:#f2e9da;font:18px/2 sans-serif;padding:10%">
 <h1>观心的新入口</h1><p>正在前往正式网站。</p>
 <p><a style="color:#d7ba83" href="https://tarot.ruichi0201.cn/">点击进入观心</a></p>
-<p>每个账号一次免费本地解读，不含 AI。付费流程目前仅供演示，不实际扣款。</p>
+<p>每个账号一次免费本地解读，不含 AI。AI 解读需充值，管理员核实收款后开通。</p>
 </body></html>''', encoding='utf-8')
 (public / '.nojekyll').touch()

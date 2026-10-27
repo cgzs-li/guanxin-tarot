@@ -1,4 +1,4 @@
-name: Verify public demo
+name: Verify public access
 on:
   workflow_dispatch:
   push:
@@ -15,7 +15,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Verify public demo without accounts or model calls
+      - name: Verify public access without accounts or model calls
         run: python tools/verify_live.py
       - uses: actions/upload-artifact@v4
         if: always()
