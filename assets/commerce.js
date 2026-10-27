@@ -63,7 +63,7 @@ function setAccount(data) {
   $('auth-view').hidden = Boolean(data?.user);
   $('member-view').hidden = !data?.user;
   $('admin-open').hidden = !data?.admin_test;
-  if (data?.admin_test && !wasAdmin) switchReadingMode('paid');
+  switchReadingMode(data?.admin_test && !wasAdmin ? 'paid' : wasAdmin && !data?.admin_test ? 'free' : commerce.mode);
   const free = data?.user ? data.free_remaining : 1;
   $('free-summary').textContent = data?.user
     ? (free ? '你的免费本地解读还未使用' : '你的免费本地解读已使用')
