@@ -399,7 +399,7 @@ async function requestAI(path,payload){
   if(path==='/api/reading'){
    if(typeof data.session_id!=='string')throw new Error('对话未建立，请重试。');
    aiSession=data.session_id;$('ai-conversation').replaceChildren();
-  }else{aiMessage('user',payload.message);$('ai-followup').value='';}
+  }else{if(typeof data.session_id==='string')aiSession=data.session_id;aiMessage('user',payload.message);$('ai-followup').value='';}
   const article=aiMessage('assistant',data.answer);$('ai-followup-form').hidden=false;$('ai-generate').textContent='本次 AI 解读已完成';
   aiStatus('回答已完成。你可以继续追问，或与下方本地牌义对照。');
   article.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth',block:'start'});

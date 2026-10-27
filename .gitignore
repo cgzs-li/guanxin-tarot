@@ -9,3 +9,8 @@ Thumbs.db
 .env.*
 **/config.local.json
 public/
+node_modules/
+.wrangler/
+.dev.vars
+.dev.vars.*
+worker/generated-library.js
