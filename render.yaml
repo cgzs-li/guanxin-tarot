@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: guanxin-tarot
+    runtime: python
+    plan: free
+    buildCommand: python -m py_compile llm-backend/server.py
+    startCommand: python llm-backend/server.py
+    healthCheckPath: /healthz
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.8
+      - key: FLOWBEE_BASE_URL
+        value: https://flowbee.top/v1
+      - key: FLOWBEE_MODEL
+        value: agnes-3.0-flash
+      - key: FLOWBEE_API_KEY
+        sync: false
+      - key: GUANXIN_SITE_ENABLED
+        value: "true"
+      - key: GUANXIN_AI_ENABLED
+        value: "true"
