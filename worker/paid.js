@@ -1,7 +1,8 @@
+import { AdminAuth } from './admin-auth.js';
 const DAY = 86400000;
 const day = () => new Date(Date.now() + 28800000).toISOString().slice(0, 10);
 export const paidPaths = new Set(['/api/order', '/api/order/status', '/api/paid/reading', '/api/paid/followup',
-  '/api/admin/order', '/api/admin/confirm', '/api/admin/model-check']);
+  '/api/admin/order', '/api/admin/confirm', '/api/admin/model-check', '/api/admin/setup', '/api/admin/login', '/api/admin/session', '/api/admin/logout']);
 class PaidError extends Error {
   constructor(message, status = 400) { super(message); this.status = status; }
 }
@@ -30,14 +31,15 @@ function refund(user, reservation) {
     user.paidUsed[reservation.tier] = Math.max(0, user.paidUsed[reservation.tier] - 1);
 }
 export class PaidService {
-  constructor(state, gateway, products) { this.storage = state.storage; this.gateway = gateway; this.products = products; }
+  constructor(state, gateway, products) { this.storage = state.storage; this.gateway = gateway; this.products = products; this.auth = new AdminAuth(state.storage); }
   checkAI() {
     const env = this.gateway.env;
     if (env.GUANXIN_AI_ENABLED === 'false' || !env.FLOWBEE_API_KEY || !env.FLOWBEE_MODEL)
       throw new PaidError('AI 暂时不可用，本次不会扣次数，请稍后再试。', 503);
   }
-  async admin(request, rate) {
+  async admin(request, rate, keyOnly = false) {
     await rate(request, 'admin', 30, 900000);
+    if (!keyOnly && await this.auth.session(request)) return;
     const secret = request.headers.get('X-Admin-Key') || '';
     if (secret.length < 32 || secret.length > 256 || !this.gateway.env.GUANXIN_ADMIN_KEY_HASH)
       throw new PaidError('管理凭证不正确。', 403);

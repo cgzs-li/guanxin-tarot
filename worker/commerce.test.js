@@ -226,3 +226,39 @@ test('after a process interruption, account refresh restores an expired reservat
     assert.equal((await restarted.request('account/me', undefined, a.cookie)).body.paid.balance.triple, 1);
   } finally { release(); Date.now = realNow; globalThis.fetch = originalFetch; }
 });
+
+
+test('admin setup requires the owner key, stores no plaintext, and cannot be repeated', async () => {
+  const f = await fixture(); const p = { username: 'OwnerTest', password: 'fictional-admin-pass-123' };
+  assert.equal((await f.request('admin/setup', p)).status, 403);
+  assert.equal((await f.request('admin/setup', p, '', adminKey)).status, 200);
+  assert.equal((await f.request('admin/setup', p, '', adminKey)).status, 409);
+  const saved = await f.storage.get('admin:account'); assert.equal(saved.hash.length, 64);
+  assert.ok(!JSON.stringify([...f.storage.values.values()]).includes(p.password));
+});
+
+test('admin login sets an isolated cookie, persists across restart and logout revokes access', async () => {
+  const f = await fixture(); const p = { username: 'OwnerTest', password: 'fictional-admin-pass-123' };
+  await f.request('admin/setup', p, '', adminKey);
+  assert.equal((await f.request('admin/login', { ...p, password: 'wrong' })).status, 401);
+  const login = await f.request('admin/login', p); assert.equal(login.status, 200);
+  assert.ok(login.cookie.startsWith('__Host-guanxin_admin='));
+  for (const flag of ['HttpOnly', 'Secure', 'SameSite=Lax']) assert.ok(login.headers.get('Set-Cookie').includes(flag));
+  const user = await register(f); const o = await order(f, user.cookie);
+  assert.equal((await f.request('admin/order', { order_id: o.id }, user.cookie)).status, 403);
+  const restarted = await fixture(f.storage);
+  assert.equal((await restarted.request('admin/order', { order_id: o.id }, login.cookie)).status, 200);
+  assert.equal((await restarted.request('admin/session', {}, login.cookie)).body.authenticated, true);
+  assert.equal((await restarted.request('admin/logout', {}, login.cookie)).status, 200);
+  assert.equal((await restarted.request('admin/order', { order_id: o.id }, login.cookie)).status, 403);
+});
+
+test('admin sessions expire after two hours and login attempts are rate limited', async () => {
+  const f = await fixture(), p = { username: 'OwnerTest', password: 'fictional-admin-pass-123' };
+  await f.request('admin/setup', p, '', adminKey); const login = await f.request('admin/login', p);
+  const realNow = Date.now; Date.now = () => realNow() + 7200001;
+  try { assert.equal((await f.request('admin/session', {}, login.cookie)).body.authenticated, false); }
+  finally { Date.now = realNow; }
+  for (let i=0;i<9;i++) assert.equal((await f.request('admin/login', { ...p, password: 'bad' })).status, 401);
+  assert.equal((await f.request('admin/login', p)).status, 429);
+});

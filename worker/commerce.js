@@ -151,6 +151,20 @@ export class Commerce {
       if (path === '/api/account/login') return await this.login(request, payload);
       const ip = request.headers.get('X-Visitor-IP');
       if (path.startsWith('/api/admin/')) {
+        const auth = this.paid.auth;
+        if (path === '/api/admin/login') {
+          const result = await auth.login(payload, request, this.rate.bind(this));
+          return reply(result.data, 200, result.cookie);
+        }
+        if (path === '/api/admin/logout') return reply({ ok: true }, 200, await auth.logout(request));
+        if (path === '/api/admin/session') {
+          const session = await auth.session(request);
+          return reply({ authenticated: Boolean(session), username: session?.username || null });
+        }
+        if (path === '/api/admin/setup') {
+          await this.paid.admin(request, this.rate.bind(this), true);
+          return reply(await auth.setup(payload));
+        }
         await this.paid.admin(request, this.rate.bind(this));
         if (path === '/api/admin/order') {
           const order = await this.paid.findOrder(payload.order_id);

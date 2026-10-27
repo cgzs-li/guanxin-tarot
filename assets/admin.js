@@ -3,10 +3,10 @@ let currentOrder = null;
 async function adminAPI(path, payload) {
   const controller = new AbortController(), timer = setTimeout(() => controller.abort(), 95000);
   try {
-    const response = await fetch('/api/admin/' + path, { method: 'POST', cache: 'no-store', credentials: 'omit',
-      headers: { 'Content-Type': 'application/json', 'X-Admin-Key': el('admin-key').value.trim() }, body: JSON.stringify(payload), signal: controller.signal });
+    const response = await fetch('/api/admin/' + path, { method: 'POST', cache: 'no-store', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), signal: controller.signal });
     const data = await response.json();
-    if (!response.ok) throw new Error(data.error || '操作未完成。');
+    if (!response.ok) { if (response.status === 403 || response.status === 401) setLoggedIn(null); throw new Error(data.error || '操作未完成。'); }
     return data;
   } catch (error) {
     if (error.name === 'AbortError') throw new Error('等待超时。请重新查询订单状态，不要重复收款。');
@@ -50,3 +50,22 @@ el('model-check').addEventListener('click', async () => {
   catch (error) { el('model-status').textContent = error.message; }
   finally { el('model-check').disabled = false; }
 });
+
+function setLoggedIn(username) {
+  el('admin-login').hidden = Boolean(username); el('admin-workspace').hidden = !username;
+  el('admin-name').textContent = username || '';
+  if (!username) { currentOrder = null; el('order-panel').hidden = true; el('order-id').value = ''; el('username').textContent = ''; el('reference').value = ''; el('status').textContent = ''; }
+}
+el('admin-login').addEventListener('submit', async event => {
+  event.preventDefault(); event.submitter.disabled = true; el('login-status').textContent = '正在登录…';
+  try { const data = await adminAPI('login', { username: el('admin-username').value.trim(), password: el('admin-password').value });
+    el('admin-password').value = ''; setLoggedIn(data.username); el('login-status').textContent = '';
+  } catch (error) { el('login-status').textContent = error.message; }
+  finally { event.submitter.disabled = false; }
+});
+el('admin-logout').addEventListener('click', async () => {
+  try { await adminAPI('logout', {}); setLoggedIn(null); el('admin-password').value = ''; }
+  catch (error) { el('status').textContent = error.message; }
+});
+adminAPI('session', {}).then(data => setLoggedIn(data.authenticated ? data.username : null))
+  .catch(() => { el('login-status').textContent = '暂时无法检查登录状态，请重试。'; });
