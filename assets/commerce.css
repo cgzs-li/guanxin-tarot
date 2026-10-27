@@ -15,6 +15,7 @@
 .product-option{display:flex;align-items:center;gap:12px;min-height:52px;padding:8px 0;cursor:pointer}.product-option strong{margin-left:auto;color:var(--gold);font:24px Georgia}.product-option:has(input:checked){color:var(--gold)}
 .checkout-price{font:48px/1.2 Georgia;color:var(--gold)}#checkout-panel{padding-top:16px}#checkout-panel h3{font:28px/1.5 var(--serif)}
 #checkout-id{overflow-wrap:anywhere}.checkout-actions{display:flex;gap:20px;align-items:center;flex-wrap:wrap;margin-top:24px}
+.payment-contact{padding:20px 0;margin:20px 0;border-block:1px solid var(--line)}.payment-contact h4{font-size:16px;color:var(--gold);margin:0 0 12px}.payment-contact p{margin:8px 0}.payment-contact .report-note{max-width:65ch}#payment-wechat,#checkout-id{user-select:all;overflow-wrap:anywhere}#copy-payment-wechat,#copy-payment-order{min-height:44px;text-align:left}#checkout-copy-status:empty{display:none}
 #reading-result-label{font-size:14px;color:var(--gold);margin:24px auto;max-width:900px}
 .share-row{border-top:1px solid var(--line);margin:24px 5% 0;padding:20px 0}.share-row p{color:var(--muted);font-size:14px;margin:8px 0}.share-row .text-btn{color:var(--gold)}
 #session-error{max-width:900px;margin:12px auto;text-align:left}

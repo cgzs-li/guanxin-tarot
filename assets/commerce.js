@@ -262,7 +262,7 @@ $('create-order').addEventListener('click', async () => {
     commerce.order = data.order;
     $('checkout-name').textContent = data.order.title; $('checkout-price').textContent = '¥' + money(data.order.price);
     $('checkout-id').textContent = data.order.id;
-    $('checkout-status').textContent = ''; $('refresh-payment').hidden = false; $('checkout-return').hidden = true;
+    $('checkout-status').textContent = ''; $('checkout-copy-status').textContent = ''; $('refresh-payment').hidden = false; $('checkout-return').hidden = true;
     $('checkout-panel').hidden = false; $('plans-selection').hidden = true; $('checkout-title').focus();
   } catch (error) {
     $('plans-status').textContent = error.message;
@@ -270,6 +270,21 @@ $('create-order').addEventListener('click', async () => {
   } finally { $('create-order').disabled = false; }
 });
 $('checkout-back').addEventListener('click', () => { $('checkout-panel').hidden = true; $('plans-selection').hidden = false; $('plans-status').textContent = ''; });
+async function copyPaymentText(value, message) {
+  try {
+    await navigator.clipboard.writeText(value);
+    $('checkout-copy-status').textContent = message;
+  } catch {
+    $('checkout-copy-status').textContent = '复制未成功，请长按或选中页面上的微信号、套餐、金额和订单号，手动复制。';
+  }
+}
+$('copy-payment-wechat').addEventListener('click', () => copyPaymentText($('payment-wechat').textContent, '微信号已复制，请到微信搜索添加。'));
+$('copy-payment-order').addEventListener('click', () => {
+  if (!commerce.order) return;
+  const order = commerce.order;
+  copyPaymentText('观心套餐开通\n套餐：' + order.title + '\n应付金额：¥' + money(order.price) + '\n订单号：' + order.id,
+    '订单信息已复制，请发给负责人核对。付款后由负责人核实到账并开通。');
+});
 $('refresh-payment').addEventListener('click', async () => {
   if (!commerce.order) return;
   $('refresh-payment').disabled = true; $('checkout-status').textContent = '正在查询到账状态…';
@@ -277,7 +292,7 @@ $('refresh-payment').addEventListener('click', async () => {
     const result = await commerceAPI('/api/order/status', { order_id: commerce.order.id });
     setAccount(result.account);
     if (result.order.status !== 'paid') {
-      $('checkout-status').textContent = '暂未确认收款。请将订单号发给向你分享网站的负责人，核对收款对象和金额；确认到账后由管理员开通。页面不会自动扣款。';
+      $('checkout-status').textContent = '暂未确认收款。请添加上方微信 LZRRR_0201，发送订单信息；付款后由负责人核实到账并开通。点击刷新只查询状态，不会自动充值。';
       return;
     }
     $('checkout-status').textContent = '管理员已确认收款，付费权益已到账。';
