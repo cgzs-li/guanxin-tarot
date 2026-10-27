@@ -53,7 +53,7 @@ function equal(a, b) {
 const chinaDay = () => new Date(Date.now() + 8 * 3600000).toISOString().slice(0, 10);
 export const spreadTier = count => count === 1 ? 'single' : count === 3 ? 'triple' : 'complex';
 function allowance(user) {
-  return { mode: 'paid', user: { id: user.id, name: user.name }, free_remaining: user.freeReceipt ? 0 : 1,
+  return { mode: 'paid', admin_test: user.role === 'owner_test', user: { id: user.id, name: user.name }, free_remaining: user.freeReceipt ? 0 : 1,
     paid: paidSummary(user) };
 }
 export class Commerce {
@@ -70,7 +70,19 @@ export class Commerce {
       await tx.put(key, value);
     });
   }
+  async ownerAccount(session) {
+    const key = 'admin:test-user';
+    const user = await this.storage.transaction(async tx => {
+      let user = await tx.get(key);
+      if (!user) { user = { id: crypto.randomUUID(), name: session.username, role: 'owner_test', freeReceipt: null,
+        paidBalance: { single: 0, triple: 0, complex: 0 }, paidMemberUntil: 0, paidOrders: [] }; await tx.put(key, user); }
+      return user;
+    });
+    return { key, user, isAdmin: true, sessionKey: session.key };
+  }
   async account(request, required = true) {
+    const admin = await this.paid.auth.session(request);
+    if (admin) return this.ownerAccount(admin);
     const token = (request.headers.get('Cookie') || '').split(';').map(s => s.trim()).find(s => s.startsWith(SESSION_COOKIE + '='))?.slice(SESSION_COOKIE.length + 1);
     if (token && /^[a-f0-9]{64}$/.test(token)) {
       const sessionKey = 'session:' + await digest(token);
@@ -110,6 +122,8 @@ export class Commerce {
   async register(request, payload) {
     await this.rate(request, 'register', 5, 3600000);
     const username = name(payload.username), pass = password(payload.password);
+    const owner = await this.storage.get('admin:account');
+    if (owner && name(owner.username) === username) throw new CommerceError('这是负责人账号，请直接使用登录。', 409);
     if (payload.confirm_password !== pass) throw new CommerceError('两次输入的密码不一致。');
     const salt = hex(crypto.getRandomValues(new Uint8Array(16)));
     const hash = await passwordHash(pass, salt);
@@ -124,6 +138,12 @@ export class Commerce {
   async login(request, payload) {
     await this.rate(request, 'login', 15, 900000);
     const username = name(payload.username), pass = password(payload.password);
+    const owner = await this.storage.get('admin:account');
+    if (owner && name(owner.username) === username) {
+      const result = await this.paid.auth.login({ username: owner.username, password: pass }, request, this.rate.bind(this));
+      const account = await this.ownerAccount({ username: owner.username });
+      return reply(allowance(account.user), 200, result.cookie);
+    }
     const key = 'user:' + username, user = await this.storage.get(key);
     const hash = await passwordHash(pass, user?.salt || 'missing-account-salt');
     if (!user || !equal(hash, user.hash)) throw new CommerceError('账号或密码不正确，请检查后重试。', 401);
@@ -131,6 +151,7 @@ export class Commerce {
   }
   async freeReading(account, payload) {
     const context = this.validate(payload);
+    if (account.isAdmin) return reply({ context, account: allowance(account.user), mode: 'local', admin_test: true });
     const operation = id(payload.request_id), fingerprint = await digest(JSON.stringify(context));
     const user = await this.storage.transaction(async tx => {
       const user = await tx.get(account.key);
@@ -182,7 +203,9 @@ export class Commerce {
       const account = await this.account(request);
       if (path === '/api/account/logout') {
         await this.storage.delete(account.sessionKey);
-        return reply({ ok: true }, 200, SESSION_COOKIE + '=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0');
+        const response = reply({ ok: true }, 200, SESSION_COOKIE + '=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0');
+        response.headers.append('Set-Cookie', await this.paid.auth.logout(request));
+        return response;
       }
       if (path === '/api/free/reading') return await this.freeReading(account, payload);
       if (path === '/api/order') return reply(await this.paid.order(account, payload));

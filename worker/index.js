@@ -148,7 +148,11 @@ export class AIGateway {
       return json({ error: error instanceof UserError ? error.message : '服务暂时不可用，请重试或阅读本地牌义。' }, error instanceof UserError ? error.status : 500);
     }
   }
-  limit(ip) {
+  limit(ip, ownerTest = false) {
+    if (ownerTest) {
+      if (this.active >= 4) throw new UserError('当前模型请求较多，请稍后重试。', 429);
+      return;
+    }
     const now = Date.now();
     this.calls = this.calls.filter(call => now - call.at < 86400000);
     if (this.calls.length >= 300) throw new UserError('今天的 AI 体验次数已用完，仍可使用本地解读。', 429);
@@ -156,12 +160,12 @@ export class AIGateway {
     if (this.active >= 4) throw new UserError('当前体验人数较多，请稍后重试。', 429);
     this.calls.push({ at: now, ip });
   }
-  async complete(messages, ip, maxTokens = 2200) {
+  async complete(messages, ip, maxTokens = 2200, ownerTest = false) {
     if (!this.env.FLOWBEE_API_KEY || !this.env.FLOWBEE_MODEL) throw new UserError('AI 尚未启用，可继续阅读本地牌义。', 503);
     let base;
     try { base = new URL(this.env.FLOWBEE_BASE_URL || 'https://flowbee.top/v1'); } catch { throw new UserError('模型接口地址配置不正确。', 503); }
     if (base.protocol !== 'https:' || base.username || base.password || base.search || base.hash) throw new UserError('远程模型接口需要使用 HTTPS。', 503);
-    this.limit(ip);
+    this.limit(ip, ownerTest);
     this.active++;
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 80000);
@@ -240,14 +244,14 @@ export class AIGateway {
       return session;
     } catch { throw new UserError('本次对话已过期，请重新生成 AI 解读；抽牌结果仍保留。', 410); }
   }
-  async reading(payload, ip) {
+  async reading(payload, ip, ownerTest = false) {
     const context = buildContext(payload);
     const messages = [{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: '请解读以下本次探索资料：\n' + JSON.stringify(context) }];
-    const answer = await this.complete(messages, ip);
+    const answer = await this.complete(messages, ip, 2200, ownerTest);
       const session_id = await this.seal({ version: 1, expires: Date.now() + 3600000, context, history: [{ role: 'assistant', content: answer }] });
     return { session_id, answer };
   }
-  async followup(payload, ip) {
+  async followup(payload, ip, ownerTest = false) {
     if (!object(payload) || typeof payload.session_id !== 'string') throw new UserError('请先完成一次 AI 解读。');
     const message = text(payload.message, 600, '追问', true);
     const session = await this.open(payload.session_id);
@@ -257,7 +261,7 @@ export class AIGateway {
       const context = session.context;
       const fixed = [{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: '请解读以下本次探索资料：\n' + JSON.stringify(context) }];
       const history = session.history.slice(-5).concat({ role: 'user', content: message });
-      const answer = await this.complete(fixed.concat(history), ip);
+      const answer = await this.complete(fixed.concat(history), ip, 2200, ownerTest);
       session.history = history.concat({ role: 'assistant', content: answer }).slice(-5);
       while (session.history.length > 1 && session.history.reduce((size, item) => size + item.content.length, 0) > 24000) session.history.splice(0, 2);
       session.expires = Date.now() + 3600000;

@@ -29,12 +29,14 @@ function switchReadingMode(mode) {
     ? '每个账号有 1 次完整本地解读。不会调用 AI，点击阅读并成功生成后才使用机会。'
     : '充值后使用真实 AI 解读。问题、背景及牌面会发送给模型服务；成功生成后使用 1 次对应权益。';
   $('start').textContent = mode === 'free' ? '开始我的免费体验 ↗' : '开始 AI 解读 ↗';
+  if (commerce.account?.admin_test) { $('reading-mode-help').textContent = '负责人测试：可重复抽牌、解读和追问，不充值、不扣次。模型服务本身的可用性仍适用。'; $('start').textContent = mode === 'free' ? '测试本地解读 ↗' : '测试 AI 解读 ↗'; }
   updateChargeNote();
 }
 function updateChargeNote() {
   $('reading-charge-note').textContent = commerce.mode === 'free'
     ? '本次为免费本地解读 · 成功生成后使用 1 次免费机会，不含 AI。'
     : '本次为付费 AI 解读 · 成功生成后使用对应牌阵 1 次权益，模型失败不扣次。';
+  if (commerce.account?.admin_test) $('reading-charge-note').textContent = '负责人测试 · 无需充值，不扣次数';
 }
 function showAuth(tab = 'login', after) {
   if (after) commerce.afterAuth = after;
@@ -55,23 +57,28 @@ function setAuthTab(tab) {
   $('auth-status').textContent = '';
 }
 function setAccount(data) {
+  const wasAdmin = commerce.account?.admin_test;
   commerce.account = data?.user ? data : null;
   $('account-open').textContent = data?.user ? '我的权益' : '登录 / 注册';
   $('auth-view').hidden = Boolean(data?.user);
   $('member-view').hidden = !data?.user;
+  $('admin-open').hidden = !data?.admin_test;
+  if (data?.admin_test && !wasAdmin) switchReadingMode('paid');
   const free = data?.user ? data.free_remaining : 1;
   $('free-summary').textContent = data?.user
     ? (free ? '你的免费本地解读还未使用' : '你的免费本地解读已使用')
     : '注册即可领取 1 次免费本地解读';
   if (!data?.user) return;
+  if (data.admin_test) $('free-summary').textContent = '负责人测试 · 本地和 AI 均可重复使用，无需充值';
   $('member-name').textContent = data.user.name;
-  $('member-free').textContent = free ? '1 次 · 不含 AI' : '已使用';
+  $('member-free').textContent = data.admin_test ? '负责人不限次数测试 · 不扣免费机会' : free ? '1 次 · 不含 AI' : '已使用';
   const paid = data.paid, activeMember = paid.member_until > Date.now();
   $('member-balances').textContent = '单张 ' + paid.balance.single + ' 次 · 三张 ' + paid.balance.triple + ' 次 · 复杂牌阵 ' + paid.balance.complex + ' 次';
   $('member-monthly').textContent = activeMember
     ? '月卡有效至 ' + new Date(paid.member_until).toLocaleDateString('zh-CN', { timeZone: 'Asia/Shanghai' }) +
       '；今日剩余：单张 ' + paid.remaining_today.single + '、三张 ' + paid.remaining_today.triple + '、复杂阵 ' + paid.remaining_today.complex
     : '暂未开通月卡';
+  if (data.admin_test) { $('member-balances').textContent = '负责人测试：全部牌阵可用，不扣次数'; $('member-monthly').textContent = '无需月卡；AI 追问不受套餐轮数限制'; }
   const list = $('member-orders'); list.replaceChildren();
   for (const order of data.orders || []) {
     const li = document.createElement('li');
@@ -129,7 +136,7 @@ async function readCommercial() {
     if (data.account) setAccount(data.account);
     commerce.paidData = data.answer ? data : null;
     showLocalReading();
-    $('reading-result-label').textContent = data.answer ? 'AI 综合解读 · 已使用付费权益' : '免费本地解读 · 未使用 AI';
+    $('reading-result-label').textContent = data.admin_test ? (data.answer ? '负责人 AI 测试 · 不扣次数' : '负责人本地测试 · 不扣次数') : data.answer ? 'AI 综合解读 · 已使用付费权益' : '免费本地解读 · 未使用 AI';
     await prepareAI();
   } catch (error) {
     if (version !== commerce.flow) return;
@@ -152,7 +159,7 @@ function commercePrepareAI() {
     aiSession = commerce.paidData.session_id;
     aiMessage('assistant', commerce.paidData.answer);
     $('ai-followup-form').hidden = commerce.paidData.followup_remaining <= 0;
-    $('ai-followup-help').textContent = '还可追问 ' + commerce.paidData.followup_remaining + ' 轮；沿用同一组牌。';
+    $('ai-followup-help').textContent = commerce.paidData.admin_test ? '负责人测试：可继续追问，沿用同一组牌，不扣次数。' : '还可追问 ' + commerce.paidData.followup_remaining + ' 轮；沿用同一组牌。';
   }
   aiStatus(commerce.paidData ? 'AI 解读已生成；本地牌义仍可在下方对照。' : '每账号只有一次免费本地解读。继续解读或使用 AI 需要充值。');
 }
@@ -168,7 +175,7 @@ async function commerceFollowup(payload) {
     if (version !== aiVersion) return;
     aiMessage('user', payload.message); aiMessage('assistant', data.answer);
     $('ai-followup').value = ''; commerce.followupId = '';
-    $('ai-followup-help').textContent = '本次追问剩余 ' + data.followup_remaining + ' 轮。';
+    $('ai-followup-help').textContent = data.admin_test ? '负责人测试：可继续追问，不扣次数。' : '本次追问剩余 ' + data.followup_remaining + ' 轮。';
     $('ai-followup-form').hidden = data.followup_remaining <= 0;
     aiStatus(data.followup_remaining > 0 ? 'AI 已回复，可以继续追问。' : '本次追问已用完，完整解读仍可阅读。');
   } catch (error) {
@@ -291,5 +298,6 @@ Promise.allSettled([
 
 function hasPaidAccess() {
   const paid = commerce.account?.paid;
+  if (commerce.account?.admin_test) return true;
   return Boolean(paid && (Object.values(paid.balance).some(n => n > 0) || (paid.remaining_today && Object.values(paid.remaining_today).some(n => n > 0))));
 }

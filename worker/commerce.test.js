@@ -262,3 +262,50 @@ test('admin sessions expire after two hours and login attempts are rate limited'
   for (let i=0;i<9;i++) assert.equal((await f.request('admin/login', { ...p, password: 'bad' })).status, 401);
   assert.equal((await f.request('admin/login', p)).status, 429);
 });
+
+
+test('owner credentials sign in from the frontend and the same session opens admin routes', async () => {
+  const f = await fixture(), owner = { username: 'OwnerTest', password: 'fictional-owner-password-123' };
+  await f.request('admin/setup', owner, '', adminKey);
+  const login = await f.request('account/login', { ...owner, username: 'ownertest' });
+  assert.equal(login.status, 200); assert.equal(login.body.admin_test, true); assert.equal(login.body.user.name, 'OwnerTest');
+  assert.ok(login.cookie.startsWith('__Host-guanxin_admin='));
+  assert.equal((await f.request('admin/session', {}, login.cookie)).body.authenticated, true);
+  assert.equal((await f.request('account/me', undefined, login.cookie)).body.admin_test, true);
+  assert.equal((await f.request('admin/order', { order_id: crypto.randomUUID() }, login.cookie)).status, 404);
+  assert.equal((await f.request('account/register', { ...owner, confirm_password: owner.password })).status, 409);
+});
+
+test('owner tests every spread and repeated followups without purchase, quotas, receipts or model call counters', async () => {
+  const f = await fixture(), owner = { username: 'OwnerTest', password: 'fictional-owner-password-123' };
+  await f.request('admin/setup', owner, '', adminKey); const login = await f.request('admin/login', owner);
+  await model(async calls => {
+    for (let i=0;i<2;i++) assert.equal((await f.request('free/reading', reading(), login.cookie)).status, 200);
+    const complex = spreads.find(s => s.slots.length > 3 && s.category !== '选择');
+    for (const id of ['single','basic',complex.id]) {
+      const r = await f.request('paid/reading', reading(id), login.cookie);
+      assert.equal(r.status, 200, r.body.error); assert.equal(r.body.admin_test, true);
+      for (let i=0;i<4;i++) {
+        const follow = await f.request('paid/followup', { session_id: r.body.session_id, request_id: crypto.randomUUID(), message: '继续测试第'+i+'步' }, login.cookie);
+        assert.equal(follow.status, 200); assert.equal(follow.body.admin_test, true);
+      }
+    }
+    assert.equal(calls.length, 15); assert.equal(f.gateway.calls.length, 0);
+    const user = await f.storage.get('admin:test-user'); assert.equal(user.freeReceipt, null);
+    assert.deepEqual(user.paidBalance, {single:0,triple:0,complex:0}); assert.deepEqual(user.paidUsed,{single:0,triple:0,complex:0}); assert.deepEqual(user.paidOrders,[]);
+    assert.ok(![...f.storage.values.keys()].some(k=>k.startsWith('paid-order:')));
+  });
+});
+
+test('owner logout and expiry revoke testing; forged frontend flags cannot unlock a normal account', async () => {
+  const f = await fixture(), owner = { username: 'OwnerTest', password: 'fictional-owner-password-123' };
+  await f.request('admin/setup', owner, '', adminKey); const login = await f.request('account/login', owner);
+  await f.request('account/logout', {}, login.cookie);
+  assert.equal((await f.request('admin/session', {}, login.cookie)).body.authenticated, false);
+  assert.equal((await f.request('paid/reading', reading(), login.cookie)).status, 401);
+  const user = await register(f);
+  assert.equal((await f.request('paid/reading', { ...reading(), admin_test:true, isAdmin:true, role:'owner_test' }, user.cookie)).status, 402);
+  const second = await f.request('admin/login', owner), realNow=Date.now; Date.now=()=>realNow()+7200001;
+  try { assert.equal((await f.request('paid/reading', reading(), second.cookie)).status, 401); }
+  finally { Date.now=realNow; }
+});
