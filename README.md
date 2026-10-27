@@ -6,7 +6,7 @@
 ## 体验入口与状态
 
 - [GitHub Pages基础体验](https://cgzs-li.github.io/guanxin-tarot/)已发布，可以抽牌和本地解读，不调用AI。
-- Cloudflare Workers完整体验：部署配置、本地模拟验收已完成；尚需账户导入、私密填Key和公网验收，不能称AI已上线。
+- [Cloudflare完整AI体验](https://tarot.ruichi0201.cn/)：已部署并绑定自有域名，首页、牌图、润色、动态三问、推荐、真实解读和连续追问已验证。免费模型可能返回额度或频率限制，此时保留本次抽牌并可稍后重试。
 - Render Python配置保留。本次账户选择Free仍要求银行卡，当前停止该路线。
 
 ## Cloudflare部署
@@ -55,7 +55,9 @@ npx wrangler dev
 
 Worker本机密钥用.dev.vars（已忽略）。构建从现有HTML提取78牌/25阵、从Python提取解读规则；public只包含index.html和assets。Pages独立构建仍关闭AI。
 
-验证：12项Node接口测试通过、Wrangler预检通过、本地workerd五接口和固定牌面追问模拟通过。尚未完成公网真实模型验收。
+验证（2026-10-27）：12项Node接口测试通过、Wrangler预检通过、本地workerd模拟通过；GitHub云端真实五接口及连续两次追问通过。自有域名在本机网络首页、HTTPS、牌图、AI配置、真实润色/三问/推荐/解读及连续两次追问通过；初次追问遇上游429，间隔后的完整解读/追问复测均一次成功，相关记录保留。390像素手机布局无横向溢出，三张首页牌图加载正常。不代表所有地区网络或模型额度均已验证。
+
+默认workers.dev地址在当前用户网络连接超时；当前正式分享入口使用上面的自有域名。域名注册仍在阿里云，DNS已接入Cloudflare；既有主域、www、bot三条A记录保留原地址且仅DNS，新增tarot子域绑定Worker。
 
 历史backend目录为收费/激活码原型，当前体验不运行它、不连其数据库。牌图来源见牌图来源.json。塔罗及模型回复用于娱乐与自我反思，不代表他人真实想法或确定未来。
 
