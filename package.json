@@ -5,7 +5,7 @@
   "scripts": {
     "build": "node tools/build_workers.mjs",
     "deploy": "npm run build && wrangler deploy",
-    "test": "node --test worker/worker.test.js"
+    "test": "node --test worker/*.test.js"
   },
   "devDependencies": { "wrangler": "4.153.0" }
 }

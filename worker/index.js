@@ -1,4 +1,5 @@
 import { cardLibrary, spreads, SYSTEM_PROMPT } from './generated-library.js';
+import { Commerce, commercePaths, products } from './commerce.js';
 
 const spreadMap = new Map(spreads.map(s => [s.id, s]));
 const routes = new Set(['/api/polish', '/api/intake-questions', '/api/recommend-spread', '/api/reading', '/api/followup']);
@@ -82,17 +83,23 @@ export default {
         { status: 503, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } });
     }
     if (url.pathname === '/api/status' && request.method === 'GET')
-      return json({ configured: Boolean(enabled(env.GUANXIN_AI_ENABLED) && env.FLOWBEE_API_KEY && env.FLOWBEE_MODEL), model: String(env.FLOWBEE_MODEL ?? '').slice(0, 100) });
+      return json({ configured: false, mode: 'demo', real_ai_available: false });
+    if (url.pathname === '/api/catalog' && request.method === 'GET')
+      return json({ mode: 'demo', products, real_ai_available: false });
     if (url.pathname.startsWith('/api/')) {
-      if (!routes.has(url.pathname)) return json({ error: '接口不存在。' }, 404);
-      if (request.method !== 'POST') return json({ error: '请使用 POST 请求。' }, 405);
-      if (request.headers.get('Origin') !== url.origin) return json({ error: '请从当前网站提交。' }, 403);
-      if (!enabled(env.GUANXIN_AI_ENABLED)) return json({ error: 'AI 体验已暂停，可以继续使用本地解读。' }, 503);
-      if (request.headers.get('Content-Type')?.split(';')[0].trim() !== 'application/json') return json({ error: '请使用 JSON 请求。' }, 415);
+      if (!routes.has(url.pathname) && !commercePaths.has(url.pathname)) return json({ error: '接口不存在。' }, 404);
+      const accountGet = url.pathname === '/api/account/me' && request.method === 'GET';
+      if (!accountGet && request.method !== 'POST') return json({ error: '请使用 POST 请求。' }, 405);
+      if (url.pathname === '/api/account/me' && !accountGet) return json({ error: '请使用 GET 请求。' }, 405);
+      if (!accountGet && request.headers.get('Origin') !== url.origin) return json({ error: '请从当前网站提交。' }, 403);
+      if (!accountGet && request.headers.get('Content-Type')?.split(';')[0].trim() !== 'application/json') return json({ error: '请使用 JSON 请求。' }, 415);
+      // Until a verified payment provider is connected, no public request can
+      // reach a real model. Demo checkout only grants separate demo balances.
+      if (routes.has(url.pathname)) return json({ error: 'AI 为付费功能，目前尚未开通真实收款。可体验明确标注的付费功能演示。' }, 402);
       const id = env.AI_GATEWAY.idFromName('guanxin-experience');
-      // Forward only platform-supplied IP and the body; no cookies or credentials.
-      const headers = { 'Content-Type': 'application/json', 'X-Visitor-IP': request.headers.get('CF-Connecting-IP') || 'unknown' };
-      return env.AI_GATEWAY.get(id).fetch(new Request('https://gateway.internal' + url.pathname, { method: 'POST', headers, body: request.body, duplex: 'half' }));
+      const headers = { 'Content-Type': 'application/json', 'X-Visitor-IP': request.headers.get('CF-Connecting-IP') || 'unknown', Cookie: request.headers.get('Cookie') || '' };
+      return env.AI_GATEWAY.get(id).fetch(new Request('https://gateway.internal' + url.pathname,
+        { method: accountGet ? 'GET' : 'POST', headers, ...(accountGet ? {} : { body: request.body, duplex: 'half' }) }));
     }
     if (!['GET', 'HEAD'].includes(request.method)) return json({ error: '请求方式不支持。' }, 405);
     if (url.pathname === '/tarot.html') url.pathname = '/';
@@ -109,20 +116,28 @@ export default {
   }
 };
 
-// A single named object coordinates light experience limits. No storage API is
-// used: counters reset on eviction/restart and are not an account billing cap.
-// Conversation state is authenticated encryption returned to the same page.
+// The named object persists accounts and demo rights separately from model
+// request counters. Legacy model methods remain internal for later integration.
 export class AIGateway {
   constructor(state, env) {
     this.env = env; this.calls = []; this.active = 0; this.busy = new Set();
+    this.commerce = new Commerce(state, buildContext);
   }
   async fetch(request) {
     try {
+      const path = new URL(request.url).pathname;
+      if (commercePaths.has(path)) {
+        if (!enabled(this.env.GUANXIN_SITE_ENABLED)) throw new UserError('网站体验已暂停。', 503);
+        if (path === '/api/account/me') return this.commerce.fetch(request);
+        let data;
+        try { data = JSON.parse(await readLimited(request.body, 196608)); }
+        catch (error) { if (error instanceof UserError) throw error; throw new UserError('请求格式不正确。'); }
+        return this.commerce.fetch(request, data);
+      }
       if (!enabled(this.env.GUANXIN_SITE_ENABLED) || !enabled(this.env.GUANXIN_AI_ENABLED)) throw new UserError('AI 体验已暂停，可以继续使用本地解读。', 503);
       let payload;
       try { payload = JSON.parse(await readLimited(request.body, 196608)); }
       catch (error) { if (error instanceof UserError) throw error; throw new UserError('请求格式不正确。'); }
-      const path = new URL(request.url).pathname;
       const ip = request.headers.get('X-Visitor-IP');
       if (path === '/api/polish') return json(await this.polish(payload, ip));
       if (path === '/api/intake-questions') return json(await this.preparation(payload, ip, false));

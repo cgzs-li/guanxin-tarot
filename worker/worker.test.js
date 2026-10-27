@@ -20,8 +20,8 @@ async function mocked(content, run, status = 200) {
   try { return await run(requests); } finally { globalThis.fetch = original; }
 }
 
-test('78 cards and 25 spreads use authoritative names, positions and orientations', () => {
-  assert.equal(cardLibrary.length, 78); assert.equal(spreads.length, 25);
+test('78 cards and 26 spreads use authoritative names, positions and orientations', () => {
+  assert.equal(cardLibrary.length, 78); assert.equal(spreads.length, 26);
   const context = buildContext({ ...payload, cards: payload.cards.map(c => ({ ...c, name: '伪造牌名' })) });
   assert.equal(context.本次抽牌[0].牌名, cardLibrary[0].name);
   assert.equal(context.本次抽牌[1].朝向, '逆位');
@@ -49,7 +49,7 @@ test('polish and both preparation endpoints preserve response contracts', async 
   await mocked(JSON.stringify({ spread_id: spread.id, reason: '三个牌位帮助整理学习步骤。' }), async requests => {
     const r = await gateway().fetch(post('recommend-spread', payload)); assert.equal(r.status, 200);
     const context = JSON.parse(requests[0].messages[1].content);
-    assert.equal(context.可选牌阵.length, 25); assert.equal(context.背景[0].回答, '总是拖延');
+    assert.equal(context.可选牌阵.length, 26); assert.equal(context.背景[0].回答, '总是拖延');
   });
 });
 
@@ -154,8 +154,8 @@ test('routing enforces same-origin JSON, pause switches and static file allowlis
     { method: 'POST', headers: { Origin: origin, 'Content-Type': type }, body: '{}' });
   assert.equal((await worker.fetch(request('/api/polish', 'https://evil.invalid'), full)).status, 403);
   assert.equal((await worker.fetch(request('/api/polish', 'https://site.invalid', 'text/plain'), full)).status, 415);
-  assert.equal((await worker.fetch(request('/api/polish'), full)).status, 200);
-  assert.equal((await worker.fetch(request('/api/polish'), { ...full, GUANXIN_AI_ENABLED: 'false' })).status, 503);
+  assert.equal((await worker.fetch(request('/api/polish'), full)).status, 402);
+  assert.equal((await worker.fetch(request('/api/polish'), { ...full, GUANXIN_AI_ENABLED: 'false' })).status, 402);
   const status = await worker.fetch(new Request('https://site.invalid/api/status'), { ...full, GUANXIN_AI_ENABLED: 'false' }); assert.equal((await status.json()).configured, false);
   assert.equal((await worker.fetch(new Request('https://site.invalid/'), { ...full, GUANXIN_SITE_ENABLED: 'false' })).status, 503);
   assert.equal(assetsCalled, 0);

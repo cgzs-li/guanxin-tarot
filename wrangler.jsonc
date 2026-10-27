@@ -10,7 +10,7 @@
     "FLOWBEE_BASE_URL": "https://flowbee.top/v1",
     "FLOWBEE_MODEL": "agnes-3.0-flash",
     "GUANXIN_SITE_ENABLED": "true",
-    "GUANXIN_AI_ENABLED": "true"
+    "GUANXIN_AI_ENABLED": "false"
   },
   "durable_objects": { "bindings": [{ "name": "AI_GATEWAY", "class_name": "AIGateway" }] },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["AIGateway"] }],
