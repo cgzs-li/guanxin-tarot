@@ -1,0 +1,24 @@
+name: Verify live AI
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [tools/verify_live.py, .github/workflows/verify-live.yml]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify public site using fictional questions
+        run: python tools/verify_live.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: live-verification
+          path: live-verification.json
