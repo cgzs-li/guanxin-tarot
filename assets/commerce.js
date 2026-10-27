@@ -270,6 +270,15 @@ $('create-order').addEventListener('click', async () => {
   } finally { $('create-order').disabled = false; }
 });
 $('checkout-back').addEventListener('click', () => { $('checkout-panel').hidden = true; $('plans-selection').hidden = false; $('plans-status').textContent = ''; });
+document.querySelectorAll('[data-payment-method]').forEach(button => button.addEventListener('click', () => {
+  const alipay = button.dataset.paymentMethod === 'alipay', name = alipay ? '支付宝' : '微信';
+  const original = '/assets/payments/' + (alipay ? 'alipay-original.jpg' : 'wechat-original.png');
+  $('payment-qr-image').src = '/assets/payments/' + (alipay ? 'alipay' : 'wechat') + '-qr.png';
+  $('payment-qr-image').alt = name + '收款二维码'; $('payment-qr-label').textContent = name + '收款码';
+  $('payment-qr-save').href = original; $('payment-qr-save').download = '观心-' + name + '收款码.' + (alipay ? 'jpg' : 'png');
+  $('payment-qr-open').href = original;
+  document.querySelectorAll('[data-payment-method]').forEach(b => b.setAttribute('aria-pressed', String(b === button)));
+}));
 async function copyPaymentText(value, message) {
   try {
     await navigator.clipboard.writeText(value);
