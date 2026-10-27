@@ -14,7 +14,7 @@ export const products = [
 ];
 export const commercePaths = new Set([
   '/api/account/me', '/api/account/register', '/api/account/login', '/api/account/logout',
-  '/api/free/reading', ...paidPaths
+  '/api/free/reading', '/api/paid/polish', '/api/paid/intake-questions', ...paidPaths
 ]);
 class CommerceError extends Error {
   constructor(message, status = 400) { super(message); this.status = status; }
@@ -208,6 +208,8 @@ export class Commerce {
         return response;
       }
       if (path === '/api/free/reading') return await this.freeReading(account, payload);
+      if (path === '/api/paid/polish' || path === '/api/paid/intake-questions')
+        return reply(await this.paid.prepare(account, payload, ip, path === '/api/paid/polish'));
       if (path === '/api/order') return reply(await this.paid.order(account, payload));
       if (path === '/api/order/status') {
         const order = await this.paid.findOrder(payload.order_id);

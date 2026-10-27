@@ -105,6 +105,15 @@ export class PaidService {
       return { order: this.publicOrder(order), already_confirmed: false };
     });
   }
+  async prepare(account, payload, ip, polish) {
+    this.checkAI();
+    const paid = paidSummary(account.user);
+    if (!account.isAdmin && !Object.values(paid.balance).some(n => n > 0) &&
+      !Object.values(paid.remaining_today || {}).some(n => n > 0))
+      throw new PaidError('AI 润色与三问随付费解读提供，请先充值套餐。', 402);
+    return polish ? this.gateway.polish(payload, ip, account.isAdmin === true)
+      : this.gateway.preparation(payload, ip, false, account.isAdmin === true);
+  }
   async reading(account, payload, ip) {
     this.checkAI();
     const context = this.gateway.commerce.validate(payload), id = operation(payload.request_id);

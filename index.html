@@ -173,7 +173,7 @@ function showIntake(){
  if(changed){intakeAnswers=[];intakeQuestions=getIntakeQuestions();intakeDraftKey=key;spreadAIKey='';}
  renderIntakeFields();
  setupSpreadChoice();$('intake-question').textContent='你的问题：'+userQuestion;$('home').hidden=true;$('intake').hidden=false;window.scrollTo(0,0);$('intake-title').focus({preventScroll:true});
- if(changed)requestPreparation('questions');
+ if(changed||(COMMERCE_ENABLED&&preparationAIEnabled()&&intakeAIKey!==key&&!intakeAnswers.some(Boolean)))requestPreparation('questions');
 }
 $('edit-question').addEventListener('click',()=>{intakeAnswers=intakeQuestions.map((_,i)=>$('answer-'+i).value.trim());$('intake').hidden=true;$('home').hidden=false;window.scrollTo(0,0);$('user-question').focus({preventScroll:true});});
 function escapeHTML(value){return value.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
@@ -262,7 +262,7 @@ $('spread-select').addEventListener('change',()=>{cancelPreparation('spread');se
 
 
 // Presentation controls; the deck, spreads and reading rules remain the source of truth.
-let intakeStep=0,intakeDraftKey='',spreadAIKey='';
+let intakeStep=0,intakeDraftKey='',spreadAIKey='',intakeAIKey='';
 const preparationRequests={questions:null,spread:null};
 function saveIntakeAnswers(){intakeAnswers=intakeQuestions.map((_,i)=>$('answer-'+i)?.value.trim()||'');}
 function renderIntakeFields(){
@@ -275,7 +275,7 @@ function cancelPreparation(kind){
  $(kind==='questions'?'intake-fields':'spread-panel').removeAttribute('aria-busy');
 }
 async function requestPreparation(kind){
- if(COMMERCE_ENABLED){$('intake-regenerate').hidden=true;$('ai-spread-recommend').hidden=true;return;}
+ if(COMMERCE_ENABLED&&(kind!=='questions'||!preparationAIEnabled()))return;
  cancelPreparation(kind);saveIntakeAnswers();
  const status=$(kind==='questions'?'intake-ai-status':'spread-ai-status');
  if(STATIC_PREVIEW){status.textContent='当前为基础体验，使用本地背景提问与牌阵建议；AI 服务尚未开放。';return;}
@@ -287,12 +287,12 @@ async function requestPreparation(kind){
  const timer=setTimeout(()=>controller.abort(),90000);
  try{
   const payload={question:userQuestion,theme};if(kind==='spread')payload.background=intakeQuestions.map((question,i)=>({question,answer:intakeAnswers[i]||''}));
-  const response=await fetch(kind==='questions'?'/api/intake-questions':'/api/recommend-spread',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload),signal:controller.signal});
+  const response=await fetch(kind==='questions'?(COMMERCE_ENABLED?'/api/paid/intake-questions':'/api/intake-questions'):'/api/recommend-spread',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload),signal:controller.signal});
   const data=await response.json();if(!response.ok)throw new Error(data.error||'服务暂不可用。');
   if(preparationRequests[kind]!==controller||$('intake').hidden||key!==preparationKey())return;
   if(kind==='questions'){
    if(!Array.isArray(data.questions)||data.questions.length!==3||data.questions.some(q=>typeof q!=='string'||!q.trim()||q.length>100)||new Set(data.questions).size!==3)throw new Error('AI 三问格式不正确。');
-   intakeQuestions=data.questions;renderIntakeFields();showBackgroundStep(intakeStep);status.textContent='已根据你的问题生成三问，可逐项填写或跳过。';
+   intakeQuestions=data.questions;intakeAIKey=theme+'|'+userQuestion;renderIntakeFields();showBackgroundStep(intakeStep);status.textContent='已根据你的问题生成三问，可逐项填写或跳过。';
   }else{
    const sp=spreads.find(s=>s.id===data.spread_id);if(!sp||typeof data.reason!=='string'||!data.reason.trim()||data.reason.length>200)throw new Error('AI 推荐结果不正确。');
    selectedSpread=sp;setupSpreadChoice();renderSpreadFilters();$('spread-reason').textContent='AI 推荐：'+data.reason;status.textContent=`推荐 ${sp.name}，共 ${sp.slots.length} 张牌。你可以更换。`;
@@ -312,7 +312,7 @@ function showBackgroundStep(step,focus=false){
  $('spread-panel').hidden=step<3;$('begin-draw').hidden=step<3;
  $('intake-prev').hidden=step===0;$('intake-skip').hidden=step===3;$('intake-next').hidden=step===3;
  $('intake-next').textContent=step===2?'选择牌阵 →':'继续 →';
- $('intake-regenerate').hidden=step===3||STATIC_PREVIEW||COMMERCE_ENABLED;
+ $('intake-regenerate').hidden=step===3||STATIC_PREVIEW||(COMMERCE_ENABLED&&!preparationAIEnabled());
  if(step===3){cancelPreparation('questions');const key=preparationKey();if(key!==spreadAIKey){spreadAIKey=key;requestPreparation('spread');}}
  if(focus){const target=step<3?$('answer-'+step):$('spread-select');target.focus({preventScroll:true});}
 }
@@ -381,13 +381,14 @@ $('user-question').addEventListener('input',resetPolish);
 document.querySelectorAll('.theme').forEach(button=>button.addEventListener('click',resetPolish));
 $('polish-question').addEventListener('click',async()=>{
  const question=$('user-question').value.trim();resetPolish();
+ if(COMMERCE_ENABLED&&!preparationAIEnabled()){$('polish-status').textContent='AI 润色随付费解读提供，请选择 AI 模式并确认套餐权益。';return;}
  if(!question){$('polish-status').textContent='先写下想问的问题，再试试 AI 润色。';$('user-question').focus();return;}
  if(question.length>300){$('polish-status').textContent='请把问题控制在300字以内。';return;}
  if(typeof fetch!=='function'){$('polish-status').textContent='AI 暂不可用，原问题仍可继续使用。';return;}
  polishOriginal=$('user-question').value;polishTheme=theme;const version=polishVersion,controller=new AbortController();polishController=controller;
  const timer=setTimeout(()=>controller.abort(),90000);$('polish-question').disabled=true;$('polish-question').textContent='润色中…';$('polish-status').textContent='正在整理表达，原问题会保留。';
  try{
-  const response=await fetch('/api/polish',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question,theme}),signal:controller.signal});
+  const response=await fetch(COMMERCE_ENABLED?'/api/paid/polish':'/api/polish',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question,theme}),signal:controller.signal});
   let data;try{data=await response.json();}catch(error){throw new Error('润色服务暂不可用，原问题已保留。');}
   if(!response.ok)throw new Error(data.error||'润色失败，原问题已保留，请稍后重试。');
   if(typeof data.question!=='string'||!data.question.trim()||data.question.length>300)throw new Error('润色结果暂不适用，原问题已保留，请重试。');
@@ -481,4 +482,4 @@ if(STATIC_PREVIEW){
 }
 
 </script>
-</div><script src="/assets/commerce.js?v=20261027-demo"></script></body></html>
+</div><script src="/assets/commerce.js?v=20261027-ai-prep"></script></body></html>

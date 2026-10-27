@@ -44,10 +44,10 @@ async function buy(f, cookie, product = 'triple-1') {
   const c = await f.request('admin/confirm', { order_id: o.id, amount_cents: o.price, reference: 'fixture-receipt-' + crypto.randomUUID() }, '', adminKey);
   assert.equal(c.status, 200, c.body.error); return o;
 }
-async function model(run, status = 200) {
+async function model(run, status = 200, content = '虚构模型回答：先安排一个十分钟的小练习。') {
   const original = globalThis.fetch, calls = [];
   globalThis.fetch = async (url, init) => { calls.push(JSON.parse(init.body)); return Response.json(status === 200
-    ? { choices: [{ message: { content: '虚构模型回答：先安排一个十分钟的小练习。' } }] } : { error: 'private upstream body' }, { status }); };
+    ? { choices: [{ message: { content } }] } : { error: 'private upstream body' }, { status }); };
   try { return await run(calls); } finally { globalThis.fetch = original; }
 }
 
@@ -308,4 +308,78 @@ test('owner logout and expiry revoke testing; forged frontend flags cannot unloc
   const second = await f.request('admin/login', owner), realNow=Date.now; Date.now=()=>realNow()+7200001;
   try { assert.equal((await f.request('paid/reading', reading(), second.cookie)).status, 401); }
   finally { Date.now=realNow; }
+});
+
+test('preparation AI rejects anonymous, unpaid and forged access before calling the model', async () => {
+  const f = await fixture(), a = await register(f);
+  await model(async calls => {
+    for (const path of ['paid/polish', 'paid/intake-questions']) {
+      assert.equal((await f.request(path, reading())).status, 401);
+      assert.equal((await f.request(path, { ...reading(), admin_test: true, role: 'owner_test', paid: true }, a.cookie)).status, 402);
+    }
+    assert.equal(calls.length, 0);
+    assert.equal((await f.request('account/me', undefined, a.cookie)).body.free_remaining, 1);
+  });
+});
+
+test('paid polish and dynamic questions use the actual question without consuming reading rights', async () => {
+  const f = await fixture(), a = await register(f); await buy(f, a.cookie, 'single-1');
+  const before = (await f.request('account/me', undefined, a.cookie)).body;
+  await model(async calls => {
+    const polished = await f.request('paid/polish', reading(), a.cookie);
+    assert.equal(polished.status, 200); assert.match(polished.body.question, /小练习/);
+    assert.match(calls[0].messages[1].content, /绘画练习/);
+  });
+  const questions = ['你最近一次绘画是什么时候？', '开始练习时最让你犹豫的是什么？', '你希望今天完成怎样的小作品？'];
+  await model(async calls => {
+    const result = await f.request('paid/intake-questions', reading(), a.cookie);
+    assert.equal(result.status, 200); assert.deepEqual(result.body.questions, questions);
+    assert.match(calls[0].messages[1].content, /绘画练习/);
+  }, 200, JSON.stringify({ questions }));
+  const after = (await f.request('account/me', undefined, a.cookie)).body;
+  assert.deepEqual(after.paid, before.paid); assert.equal(after.free_remaining, before.free_remaining);
+  assert.deepEqual(after.orders, before.orders); assert.equal(f.gateway.calls.length, 2);
+  const user = await f.storage.get('user:测试账号'); user.paidBalance.single = 0; await f.storage.put('user:测试账号', user);
+  assert.equal((await f.request('paid/polish', reading(), a.cookie)).status, 402);
+});
+
+test('preparation follows monthly expiry and daily allowance and preserves rights on model errors', async () => {
+  const f = await fixture(), a = await register(f); await buy(f, a.cookie, 'monthly');
+  await model(async () => assert.equal((await f.request('paid/polish', reading(), a.cookie)).status, 200));
+  const key = 'user:测试账号', user = await f.storage.get(key);
+  user.paidUsed = { single: 3, triple: 3, complex: 1 }; await f.storage.put(key, user);
+  await model(async calls => {
+    assert.equal((await f.request('paid/polish', reading(), a.cookie)).status, 402);
+    user.paidUsed.single = 0; user.paidMemberUntil = Date.now() - 1; await f.storage.put(key, user);
+    assert.equal((await f.request('paid/intake-questions', reading(), a.cookie)).status, 402);
+    assert.equal(calls.length, 0);
+  });
+  await buy(f, a.cookie, 'single-1');
+  const before = (await f.request('account/me', undefined, a.cookie)).body;
+  await model(async () => assert.equal((await f.request('paid/polish', reading(), a.cookie)).status, 502), 429);
+  await model(async () => assert.equal((await f.request('paid/intake-questions', reading(), a.cookie)).status, 502), 200, '{"questions":["相同？","相同？","第三问？"]}');
+  assert.deepEqual((await f.request('account/me', undefined, a.cookie)).body, before);
+  f.gateway.env.GUANXIN_AI_ENABLED = 'false';
+  await model(async calls => {
+    assert.equal((await f.request('paid/polish', reading(), a.cookie)).status, 503); assert.equal(calls.length, 0);
+  });
+});
+
+test('owner preparation bypasses paid quotas but logout revokes access', async () => {
+  const f = await fixture(), owner = { username: 'OwnerTest', password: 'fictional-owner-password-123' };
+  await f.request('admin/setup', owner, '', adminKey); const login = await f.request('account/login', owner);
+  await model(async calls => {
+    assert.equal((await f.request('paid/polish', reading(), login.cookie)).status, 200);
+    assert.equal(calls.length, 1); assert.equal(f.gateway.calls.length, 0);
+  });
+  await model(async () => {
+    assert.equal((await f.request('paid/intake-questions', reading(), login.cookie)).status, 200);
+  }, 200, '{"questions":["目前在练什么？","卡在哪里？","希望先完成什么？"]}');
+  const me = (await f.request('account/me', undefined, login.cookie)).body;
+  assert.equal(me.free_remaining, 1); assert.deepEqual(me.paid.balance, {single:0,triple:0,complex:0}); assert.deepEqual(me.orders,[]);
+  await f.request('account/logout', {}, login.cookie);
+  await model(async calls => {
+    for (const path of ['paid/polish', 'paid/intake-questions']) assert.equal((await f.request(path, reading(), login.cookie)).status, 401);
+    assert.equal(calls.length, 0);
+  });
 });
