@@ -116,7 +116,7 @@ export class Commerce {
     if (!account) return reply({ mode: 'paid', user: null });
     await this.paid.recover(account);
     account.user = await this.storage.get(account.key);
-    const orders = await Promise.all((account.user.paidOrders || []).slice(-12).reverse().map(orderId => this.storage.get('paid-order:' + orderId)));
+    const orders = await Promise.all((account.user.paidOrders || []).slice(-20).reverse().map(orderId => this.storage.get('paid-order:' + orderId)));
     return reply({ ...allowance(account.user), orders: orders.filter(Boolean).map(o => this.paid.publicOrder(o)) });
   }
   async register(request, payload) {

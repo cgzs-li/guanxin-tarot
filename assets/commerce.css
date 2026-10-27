@@ -8,7 +8,7 @@
 #account-dialog input{min-height:50px;resize:none}#account-dialog h3{font:24px/1.5 var(--serif);margin-top:32px}
 .auth-tabs{display:flex;gap:24px;border-bottom:1px solid var(--line);margin-bottom:12px}.auth-tabs [aria-pressed=true]{color:var(--gold);text-decoration-thickness:2px}
 .member-details{margin:24px 0}.member-details dt{color:var(--muted);font-size:14px}.member-details dd{margin:4px 0 20px;overflow-wrap:anywhere}
-.order-list{padding-left:20px;color:var(--muted);font-size:14px}.order-list li{margin:12px 0;overflow-wrap:anywhere}
+.order-list{padding:0;list-style:none;color:var(--muted);font-size:14px}.order-list li{padding:20px 0;border-bottom:1px solid var(--line);overflow-wrap:anywhere}.order-list strong{color:var(--text)}.order-list p{margin:6px 0}.order-list .order-number{font-size:12px;user-select:all}.order-list .text-btn,#member-refresh{min-height:44px;color:var(--gold)}
 #plans-dialog{max-width:1000px}#plans-dialog>p,#plans-selection>p{max-width:70ch}
 .plan-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px 40px;margin:24px 0}
 .plan-group{padding:20px 0 0;border-top:1px solid var(--line);min-width:0}.plan-group h3{font:26px/1.5 var(--serif);margin-bottom:8px}.plan-group p{font-size:14px;margin-bottom:12px}

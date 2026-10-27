@@ -90,19 +90,23 @@ export class PaidService {
       if (!order) throw new PaidError('没有找到这笔正式订单。', 404);
       if (!Number.isInteger(payload.amount_cents) || payload.amount_cents !== order.price)
         throw new PaidError('核对金额必须与订单应收金额完全一致。');
+      if (payload.reference.trim() === order.id) throw new PaidError('订单号不能代替真实收款流水号。');
+      const storedUser = await tx.get(order.userKey);
+      if (!storedUser || storedUser.id !== order.userId) throw new PaidError('订单关联账号不存在或不匹配，请核对后再开通。', 409);
+      const user = defaults(storedUser);
       if (order.status === 'paid') {
         if (order.receiptHash !== receiptHash) throw new PaidError('该订单已用其他流水确认，请核对。', 409);
-        return { order: this.publicOrder(order), already_confirmed: true };
+        return { order: this.publicOrder(order), already_confirmed: true, recipient: { username: user.name, paid: paidSummary(user) } };
       }
       const used = await tx.get('paid-receipt:' + receiptHash);
       if (used && used !== order.id) throw new PaidError('这笔收款流水已用于其他订单。', 409);
-      const user = defaults(await tx.get(order.userKey));
       const product = this.products.find(p => p.id === order.product_id);
+      if (!product) throw new PaidError('订单套餐不存在，请核对后再开通。', 409);
       if (product.tier === 'monthly') user.paidMemberUntil = Math.max(Date.now(), user.paidMemberUntil) + 30 * DAY;
       else user.paidBalance[product.tier] += product.count;
       order.status = 'paid'; order.confirmed = Date.now(); order.receiptHash = receiptHash;
       await tx.put('paid-order:' + order.id, order); await tx.put('paid-receipt:' + receiptHash, order.id); await tx.put(order.userKey, user);
-      return { order: this.publicOrder(order), already_confirmed: false };
+      return { order: this.publicOrder(order), already_confirmed: false, recipient: { username: user.name, paid: paidSummary(user) } };
     });
   }
   async prepare(account, payload, ip, polish) {

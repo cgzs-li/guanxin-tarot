@@ -72,8 +72,9 @@ function setAuthTab(tab) {
 }
 function setAccount(data) {
   const wasAdmin = commerce.account?.admin_test;
+  if (data?.user && !data.orders && data.user.id === commerce.account?.user.id) data = { ...data, orders: commerce.account.orders };
   commerce.account = data?.user ? data : null;
-  $('account-open').textContent = data?.user ? '我的权益' : '登录 / 注册';
+  $('account-open').textContent = data?.user ? '我的权益 / 订单' : '登录 / 注册';
   $('auth-view').hidden = Boolean(data?.user);
   $('member-view').hidden = !data?.user;
   $('admin-open').hidden = !data?.admin_test;
@@ -96,11 +97,42 @@ function setAccount(data) {
   const list = $('member-orders'); list.replaceChildren();
   for (const order of data.orders || []) {
     const li = document.createElement('li');
-    li.textContent = order.title + ' · ¥' + money(order.price) + ' · ' + (order.status === 'paid' ? '已收款开通' : '待收款确认') +
-      ' · ' + new Date(order.created).toLocaleDateString('zh-CN', { timeZone: 'Asia/Shanghai' });
+    const title = document.createElement('strong'); title.textContent = order.title + ' · ¥' + money(order.price);
+    const detail = document.createElement('p'); detail.textContent = (order.status === 'paid' ? '已收款开通' : '待收款确认') +
+      ' · ' + new Date(order.created).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
+    const id = document.createElement('p'); id.className = 'order-number'; id.textContent = '订单号：' + order.id;
+    const button = document.createElement('button'); button.type = 'button'; button.className = 'text-btn';
+    button.textContent = order.status === 'paid' ? '查看订单' : '查看订单 / 继续付款';
+    button.addEventListener('click', () => viewOrder(order, button));
+    li.append(title, detail, id, button);
     list.append(li);
   }
   if (!list.childElementCount) { const li = document.createElement('li'); li.textContent = '还没有订单。'; list.append(li); }
+}
+function showCheckout(order) {
+  commerce.order = order;
+  const paid = order.status === 'paid';
+  $('checkout-title').textContent = paid ? '订单已开通' : '待收款确认';
+  $('checkout-name').textContent = order.title; $('checkout-price').textContent = '¥' + money(order.price);
+  $('checkout-id').textContent = order.id; $('checkout-payment').hidden = paid;
+  $('copy-payment-order').textContent = paid ? '复制订单信息' : '复制订单信息，发给负责人';
+  $('checkout-copy-status').textContent = '';
+  $('checkout-status').textContent = paid ? '此订单已确认收款并开通，无需再次付款。可在“我的权益 / 订单”查看当前剩余权益。' : '如已付款，请勿重复付款。联系负责人核实到账后开通。';
+  $('refresh-payment').hidden = false; $('checkout-return').hidden = !paid;
+  $('checkout-return').textContent = $('session').hidden ? '返回，开始 AI 解读' : '返回当前抽牌';
+  $('checkout-panel').hidden = false; $('plans-selection').hidden = true;
+  if ($('account-dialog').open) closeDialog($('account-dialog'));
+  if (!$('plans-dialog').open) openDialog($('plans-dialog'));
+  $('checkout-title').focus();
+}
+async function viewOrder(order, button) {
+  button.disabled = true; $('member-status').textContent = '正在查询订单…';
+  try {
+    const result = await commerceAPI('/api/order/status', { order_id: order.id });
+    setAccount(result.account); await refreshAccount();
+    $('member-status').textContent = ''; showCheckout(result.order);
+  } catch (error) { $('member-status').textContent = error.message; }
+  finally { button.disabled = false; }
 }
 async function refreshAccount() {
   const data = await commerceAPI('/api/account/me');
@@ -219,8 +251,15 @@ $('plans-open').addEventListener('click', openPlans);
 $('plans-inline').addEventListener('click', openPlans);
 $('member-plans').addEventListener('click', openPlans);
 $('account-open').addEventListener('click', async () => {
-  try { await refreshAccount(); } catch { $('auth-status').textContent = '账号状态暂未刷新，请重试。'; }
+  $('member-status').textContent = '';
+  try { await refreshAccount(); } catch { $('member-status').textContent = $('auth-status').textContent = '账号状态暂未刷新，请重试。'; }
   if (commerce.account) openDialog($('account-dialog')); else showAuth('login');
+});
+$('member-refresh').addEventListener('click', async () => {
+  $('member-refresh').disabled = true; $('member-status').textContent = '正在刷新权益与订单…';
+  try { await refreshAccount(); $('member-status').textContent = '权益与订单已更新。'; }
+  catch (error) { $('member-status').textContent = error.message; }
+  finally { $('member-refresh').disabled = false; }
 });
 $('auth-login-tab').addEventListener('click', () => setAuthTab('login'));
 $('auth-register-tab').addEventListener('click', () => setAuthTab('register'));
@@ -259,11 +298,8 @@ $('create-order').addEventListener('click', async () => {
   try {
     if (!commerce.cartId || commerce.cartProduct !== product.id) { commerce.cartId = crypto.randomUUID(); commerce.cartProduct = product.id; }
     const data = await commerceAPI('/api/order', { product_id: product.id, request_id: commerce.cartId });
-    commerce.order = data.order;
-    $('checkout-name').textContent = data.order.title; $('checkout-price').textContent = '¥' + money(data.order.price);
-    $('checkout-id').textContent = data.order.id;
-    $('checkout-status').textContent = ''; $('checkout-copy-status').textContent = ''; $('refresh-payment').hidden = false; $('checkout-return').hidden = true;
-    $('checkout-panel').hidden = false; $('plans-selection').hidden = true; $('checkout-title').focus();
+    showCheckout(data.order);
+    refreshAccount().catch(() => {});
   } catch (error) {
     $('plans-status').textContent = error.message;
     if (error.status === 401) { setAccount(null); closeDialog($('plans-dialog')); showAuth('login', openPlans); }
@@ -299,13 +335,14 @@ $('refresh-payment').addEventListener('click', async () => {
   $('refresh-payment').disabled = true; $('checkout-status').textContent = '正在查询到账状态…';
   try {
     const result = await commerceAPI('/api/order/status', { order_id: commerce.order.id });
-    setAccount(result.account);
+    setAccount(result.account); showCheckout(result.order);
+    try { await refreshAccount(); } catch { /* The order status and current rights are already updated. */ }
     if (result.order.status !== 'paid') {
       $('checkout-status').textContent = '暂未确认收款。请添加上方微信 LZRRR_0201，发送订单信息；付款后由负责人核实到账并开通。点击刷新只查询状态，不会自动充值。';
       return;
     }
-    $('checkout-status').textContent = '管理员已确认收款，付费权益已到账。';
-    $('refresh-payment').hidden = true; $('checkout-return').hidden = false;
+    $('checkout-status').textContent = '管理员已确认收款，付费权益已到账，无需重复付款。';
+    $('checkout-return').hidden = false;
     $('checkout-return').textContent = $('session').hidden ? '返回，开始 AI 解读' : '返回当前抽牌';
     switchReadingMode('paid'); commerce.cartId = '';
   } catch (error) { $('checkout-status').textContent = error.message; }

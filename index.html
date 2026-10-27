@@ -35,7 +35,7 @@ details.reading{display:block;scroll-margin-top:24px}details.reading>summary{cur
 .question-tools{display:flex;align-items:center;gap:16px;margin:4px 0 8px}.question-tools .example-btn{flex:1;min-width:0;padding:4px 0;line-height:1.7}.polish-btn{flex-shrink:0;min-height:44px;padding:8px 16px;border:1px solid var(--line);border-radius:4px;background:transparent;color:var(--gold);font-size:13px}.polish-btn:hover{border-color:var(--gold);background:#d4b78210}.polish-help{margin:0 0 12px}.polish-status{font-size:13px;color:var(--muted);margin:8px 0 12px;overflow-wrap:anywhere}.polish-status:empty{display:none}.polish-status[data-error=true]{color:#ffb3ad}.polish-preview{border:1px solid var(--line);padding:16px;margin:12px 0 20px;background:var(--surface);border-radius:6px}.polish-preview h3{font:18px/1.5 var(--serif);color:var(--gold);margin:0 0 10px}.polish-preview p{white-space:pre-wrap;overflow-wrap:anywhere;margin-bottom:12px;font-size:15px}.polish-actions{display:flex;align-items:center;gap:16px}.themes{flex-wrap:wrap}.theme{flex:1;min-width:60px}
 @media(max-width:600px){.question-tools{gap:12px}.polish-btn{padding-inline:12px}.polish-help{font-size:11px;line-height:1.8}}
 </style>
-<link rel="stylesheet" href="/assets/commerce.css?v=20261027-qr">
+<link rel="stylesheet" href="/assets/commerce.css?v=20261027-orders">
 </head>
 <body><div id="experience-app">
 <header><div class="brand"><svg viewBox="0 0 32 40" fill="none" stroke="currentColor" aria-hidden="true"><path d="M16 1v38M1 20h30M16 5 27 20 16 35 5 20Z"/><circle cx="16" cy="20" r="5"/></svg><div>观心<small>GUAN XIN · TAROT</small></div></div><div class="header-tools"><div class="header-note">留一点时间，听见自己。</div><button class="nav-library" id="plans-open" type="button">套餐与会员</button><button class="nav-library" id="account-open" type="button">登录 / 注册</button><a class="nav-library" id="admin-open" href="/assets/admin.html" hidden>管理后台 ↗</a><button class="nav-library" id="nav-library">牌义图书馆 ↗</button></div></header><div class="commerce-banner"><p><strong>每账号一次免费</strong>　免费为本地牌义解读；AI 解读和继续使用需要充值。</p><button class="text-btn" id="plans-inline" type="button">了解套餐 ↗</button></div>
@@ -76,8 +76,8 @@ details.reading{display:block;scroll-margin-top:24px}details.reading>summary{cur
 <dl class="member-details"><dt>免费本地解读</dt><dd id="member-free"></dd><dt>付费次卡</dt><dd id="member-balances"></dd><dt>月卡</dt><dd id="member-monthly"></dd></dl>
 <p class="demo-note">次数由后台记录；模型失败不扣次。月卡不自动续费。</p>
 <button class="primary" id="member-plans" type="button">查看套餐与会员</button>
-<h3>最近的订单</h3><ul class="order-list" id="member-orders"></ul>
-<p id="member-status" role="status"></p><button class="text-btn" id="account-logout" type="button">退出登录</button>
+<h3>我的订单</h3><p class="report-note">显示最近 20 笔订单。付款后请刷新查看，未开通时不要重复付款。</p><button class="text-btn" id="member-refresh" type="button">刷新权益与订单</button><ul class="order-list" id="member-orders"></ul>
+<p id="member-status" role="status" aria-live="polite"></p><button class="text-btn" id="account-logout" type="button">退出登录</button>
 </div></dialog>
 <dialog id="plans-dialog" aria-labelledby="plans-title">
 <div class="dialog-heading"><h2 id="plans-title">为下一次探索，留一点空间。</h2><form method="dialog"><button class="text-btn" aria-label="关闭套餐窗口">关闭</button></form></div>
@@ -91,7 +91,7 @@ details.reading{display:block;scroll-margin-top:24px}details.reading>summary{cur
 <section id="checkout-panel" hidden aria-labelledby="checkout-title">
 <h3 id="checkout-title" tabindex="-1">待付款订单</h3>
 <p id="checkout-name"></p><p class="checkout-price" id="checkout-price"></p>
-<section class="payment-qr" aria-labelledby="payment-qr-title">
+<div id="checkout-payment"><section class="payment-qr" aria-labelledby="payment-qr-title">
 <h4 id="payment-qr-title">选择付款方式</h4>
 <div class="payment-methods" role="group" aria-label="收款码类型"><button class="text-btn" type="button" data-payment-method="wechat" aria-pressed="true">微信支付</button><button class="text-btn" type="button" data-payment-method="alipay" aria-pressed="false">支付宝</button></div>
 <figure><img id="payment-qr-image" src="/assets/payments/wechat-qr.png" width="240" height="240" alt="微信收款二维码"><figcaption id="payment-qr-label">微信收款码</figcaption></figure>
@@ -104,7 +104,7 @@ details.reading{display:block;scroll-margin-top:24px}details.reading>summary{cur
 <button class="text-btn" id="copy-payment-wechat" type="button">复制微信号</button>
 <p class="report-note">付款后添加微信，发送下方订单信息及付款凭证。负责人核实到账后，为当前账号开通对应套餐；付款不会自动充值。</p>
 </section>
-<p class="report-note">订单号：<span id="checkout-id"></span></p>
+</div><p class="report-note">订单号：<span id="checkout-id"></span></p>
 <button class="text-btn" id="copy-payment-order" type="button">复制订单信息，发给负责人</button>
 <p id="checkout-copy-status" class="report-note" role="status" aria-live="polite"></p>
 <p id="checkout-status" role="status" aria-live="polite"></p>
@@ -496,4 +496,4 @@ if(STATIC_PREVIEW){
 }
 
 </script>
-</div><script src="/assets/commerce.js?v=20261027-qr"></script></body></html>
+</div><script src="/assets/commerce.js?v=20261027-orders"></script></body></html>

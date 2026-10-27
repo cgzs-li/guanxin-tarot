@@ -110,10 +110,52 @@ test('admin validates amount and receipt; concurrent repeated confirmation grant
   assert.equal((await f.request('admin/confirm', { ...p, amount_cents: 1 }, '', adminKey)).status, 400);
   const results = await Promise.all([f.request('admin/confirm', p, '', adminKey), f.request('admin/confirm', p, '', adminKey)]);
   assert.ok(results.every(r => r.status === 200));
+  assert.ok(results.every(r => r.body.recipient.username === '测试账号' && r.body.recipient.paid.balance.triple === 1));
+  assert.deepEqual(results.map(r => r.body.already_confirmed).sort(), [false, true]);
   assert.equal((await f.request('account/me', undefined, a.cookie)).body.paid.balance.triple, 1);
+  const state = (await f.request('order/status', { order_id: o.id }, a.cookie)).body;
+  assert.equal(state.order.status, 'paid'); assert.equal(state.account.paid.balance.triple, 1);
   const o2 = await order(f, a.cookie);
   assert.equal((await f.request('admin/confirm', { ...p, order_id: o2.id }, '', adminKey)).status, 409);
   assert.ok(!JSON.stringify([...f.storage.values.values()]).includes(p.reference));
+});
+
+test('confirmation rejects order ids as receipts and broken account links without granting rights', async () => {
+  const f = await fixture(), a = await register(f), o = await order(f, a.cookie);
+  const payload = { order_id: o.id, amount_cents: o.price, reference: 'fictional-receipt-for-integrity-check' };
+  assert.equal((await f.request('admin/confirm', { ...payload, reference: o.id }, '', adminKey)).status, 400);
+  const user = await f.storage.get('user:测试账号');
+  await f.storage.delete('user:测试账号');
+  assert.equal((await f.request('admin/confirm', payload, '', adminKey)).status, 409);
+  await f.storage.put('user:测试账号', { ...user, id: crypto.randomUUID() });
+  assert.equal((await f.request('admin/confirm', payload, '', adminKey)).status, 409);
+  assert.equal((await f.storage.get('paid-order:' + o.id)).status, 'pending');
+  assert.equal((await f.storage.get('user:测试账号')).paidBalance.triple, 0);
+});
+
+test('monthly confirmation reports the credited account and persisted expiry without extending twice', async () => {
+  const f = await fixture(), a = await register(f), o = await order(f, a.cookie, 'monthly');
+  const payload = { order_id: o.id, amount_cents: o.price, reference: 'fictional-monthly-receipt-001' };
+  const result = await f.request('admin/confirm', payload, '', adminKey);
+  assert.equal(result.status, 200); assert.equal(result.body.recipient.username, '测试账号');
+  const until = result.body.recipient.paid.member_until; assert.ok(until > Date.now() + 29 * 86400000);
+  assert.equal((await f.request('admin/confirm', payload, '', adminKey)).body.recipient.paid.member_until, until);
+  const me = (await f.request('account/me', undefined, a.cookie)).body;
+  assert.equal(me.paid.member_until, until); assert.equal(me.orders[0].status, 'paid');
+});
+
+test('my orders returns the latest twenty own orders with confirmed status across login', async () => {
+  const f = await fixture(), a = await register(f), other = await register(f, '订单隔离用户');
+  const first = await buy(f, a.cookie);
+  for (let i = 0; i < 19; i++) await order(f, a.cookie);
+  const me = (await f.request('account/me', undefined, a.cookie)).body;
+  assert.equal(me.orders.length, 20); assert.equal(me.orders.at(-1).id, first.id); assert.equal(me.orders.at(-1).status, 'paid');
+  assert.deepEqual((await f.request('account/me', undefined, other.cookie)).body.orders, []);
+  assert.equal((await f.request('order/status', { order_id: first.id }, other.cookie)).status, 404);
+  await f.request('account/logout', {}, a.cookie);
+  const restarted = await fixture(f.storage);
+  const login = await restarted.request('account/login', { username: '测试账号', password: 'fictional-password-123' });
+  assert.equal((await restarted.request('account/me', undefined, login.cookie)).body.orders.length, 20);
 });
 
 test('account isolation prevents reading or viewing another user order or conversation', async () => {
