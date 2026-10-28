@@ -1,6 +1,44 @@
 const el = id => document.getElementById(id);
 let currentOrder = null;
 let adminTrial = null, feedbackBefore = null, feedbackBusy = false;
+let usersAfter = null, usersBusy = false;
+const dateLabel = value => value ? new Date(value).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }) : '暂无记录';
+async function loadAudience() {
+  el('audience-refresh').disabled = true; el('audience-status').textContent = '正在读取访问统计…';
+  try {
+    const data = await adminAPI('audience', {}), stats = data.stats;
+    el('audience-status').textContent = stats ? '统计开始于 ' + dateLabel(stats.started) + '。今日按北京时间统计。' : '还没有访问记录，用户打开网站后会显示在这里。';
+    el('audience-totals').textContent = stats ? '今日：' + stats.today.views + ' 次访问 / ' + stats.today.visitors + ' 个访客；累计：' + stats.views + ' 次访问 / ' + stats.visitors + ' 个访客。' : '';
+    el('audience-list').replaceChildren();
+    for (const item of data.recent) {
+      const li = document.createElement('li');
+      li.textContent = (item.owner ? '负责人访问' : item.username ? '账号：' + item.username : '未登录访客：' + item.visitor) + ' · ' + dateLabel(item.time);
+      el('audience-list').append(li);
+    }
+  } catch (error) { el('audience-status').textContent = error.message; }
+  finally { el('audience-refresh').disabled = false; }
+}
+async function loadUsers(more = false) {
+  if (usersBusy) return;
+  usersBusy = true; el('users-refresh').disabled = true; el('users-more').disabled = true;
+  el('users-status').textContent = '正在读取注册用户…';
+  try {
+    const data = await adminAPI('users', more && usersAfter ? { after: usersAfter } : {});
+    if (!more) el('users-list').replaceChildren();
+    for (const item of data.items) {
+      const li = document.createElement('li'), name = document.createElement('strong'), detail = document.createElement('p');
+      name.textContent = item.username;
+      detail.textContent = '注册：' + dateLabel(item.created) + '；最近活跃：' + dateLabel(item.last_seen);
+      li.append(name, detail); el('users-list').append(li);
+    }
+    usersAfter = data.next_after; el('users-more').hidden = !usersAfter;
+    el('users-status').textContent = data.total ? '共 ' + data.total + ' 个注册账号，已显示 ' + el('users-list').childElementCount + ' 个（按账号排序）。' : '还没有注册用户。';
+  } catch (error) { el('users-status').textContent = error.message; }
+  finally { usersBusy = false; el('users-refresh').disabled = false; el('users-more').disabled = false; }
+}
+el('audience-refresh').addEventListener('click', loadAudience);
+el('users-refresh').addEventListener('click', () => loadUsers());
+el('users-more').addEventListener('click', () => loadUsers(true));
 function trialOpen() { return Boolean(adminTrial?.active && Date.now() < adminTrial.ends_at); }
 function trialMessage(data) {
   adminTrial = data;
@@ -96,8 +134,11 @@ el('model-check').addEventListener('click', async () => {
 function setLoggedIn(username) {
   el('admin-login').hidden = Boolean(username); el('admin-workspace').hidden = !username;
   el('admin-name').textContent = username || '';
-  if (username) { loadFeedback(); adminAPI('session', {}).then(data => trialMessage(data.trial)).catch(() => {}); }
-  else { el('admin-feedback-list').replaceChildren(); el('feedback-list-status').textContent = ''; feedbackBefore = null; }
+  if (username) { loadFeedback(); loadAudience(); loadUsers(); adminAPI('session', {}).then(data => trialMessage(data.trial)).catch(() => {}); }
+  else {
+    el('admin-feedback-list').replaceChildren(); el('feedback-list-status').textContent = ''; feedbackBefore = null;
+    el('audience-list').replaceChildren(); el('users-list').replaceChildren(); el('audience-totals').textContent = ''; el('audience-status').textContent = ''; el('users-status').textContent = ''; usersAfter = null;
+  }
   if (!username) { currentOrder = null; el('order-panel').hidden = true; el('order-id').value = ''; el('username').textContent = ''; el('reference').value = ''; el('status').textContent = ''; }
 }
 el('admin-login').addEventListener('submit', async event => {

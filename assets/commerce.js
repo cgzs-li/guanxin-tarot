@@ -4,6 +4,14 @@ const commerce = { account: null, products: [], mode: 'free', requestId: '', pai
 const money = cents => (cents / 100).toFixed(1).replace(/\.0$/, '');
 const tierName = { single: '单张', triple: '三张', complex: '复杂牌阵', monthly: '月卡' };
 let trialState = null, trialReceived = 0, trialTimer;
+const visitPageId = crypto.randomUUID();
+let visitAccount, visitQueue = Promise.resolve();
+function recordVisit(data) {
+  const account = data?.user?.id || '';
+  if (account === visitAccount) return;
+  visitAccount = account;
+  visitQueue = visitQueue.catch(() => {}).then(() => commerceAPI('/api/visit', { page_id: visitPageId })).catch(() => {});
+}
 function trialActive() { return Boolean(trialState?.active && trialState.server_now + Date.now() - trialReceived < trialState.ends_at); }
 function trialEndLabel() { return new Date(trialState.ends_at).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }); }
 function setTrial(state) {
@@ -101,6 +109,7 @@ function setAuthTab(tab) {
 }
 function setAccount(data) {
   setTrial(data?.trial);
+  recordVisit(data);
   const wasAdmin = commerce.account?.admin_test;
   if (data?.user && !data.orders && data.user.id === commerce.account?.user.id) data = { ...data, orders: commerce.account.orders };
   commerce.account = data?.user ? data : null;

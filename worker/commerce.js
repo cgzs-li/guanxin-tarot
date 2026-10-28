@@ -2,6 +2,7 @@
 import { PaidService, paidPaths, paidSummary } from './paid.js';
 import { trialWindow } from './trial.js';
 import { Feedback } from './feedback.js';
+import { Audience } from './audience.js';
 const enc = new TextEncoder();
 const DAY = 86400000;
 const SESSION_COOKIE = '__Host-guanxin_session';
@@ -16,7 +17,7 @@ export const products = [
 ];
 export const commercePaths = new Set([
   '/api/account/me', '/api/account/register', '/api/account/login', '/api/account/logout',
-  '/api/free/reading', '/api/feedback', '/api/admin/feedback', '/api/paid/polish', '/api/paid/intake-questions', ...paidPaths
+  '/api/visit', '/api/admin/audience', '/api/admin/users', '/api/free/reading', '/api/feedback', '/api/admin/feedback', '/api/paid/polish', '/api/paid/intake-questions', ...paidPaths
 ]);
 class CommerceError extends Error {
   constructor(message, status = 400) { super(message); this.status = status; }
@@ -59,7 +60,7 @@ function allowance(user) {
     paid: paidSummary(user) };
 }
 export class Commerce {
-  constructor(state, validate, gateway) { this.storage = state.storage; this.validate = validate; this.gateway = gateway; this.paid = new PaidService(state, gateway, products); this.feedback = new Feedback(state.storage); }
+  constructor(state, validate, gateway) { this.storage = state.storage; this.validate = validate; this.gateway = gateway; this.paid = new PaidService(state, gateway, products); this.feedback = new Feedback(state.storage); this.audience = new Audience(state.storage); }
   accountData(user) { return { ...allowance(user), trial: trialWindow(this.gateway.env) }; }
   async rate(request, kind, limit, windowMs) {
     const key = 'rate:' + kind + ':' + (await digest(request.headers.get('X-Visitor-IP') || 'unknown')).slice(0, 32);
@@ -106,6 +107,7 @@ export class Commerce {
       const sessions = current.sessions || [];
       for (const old of sessions.slice(0, Math.max(0, sessions.length - 4))) await tx.delete(old);
       current.sessions = sessions.slice(-4).concat(sessionKey);
+      current.lastSeen = Date.now();
       await tx.put(sessionKey, { userKey, expires });
       await tx.put(userKey, current);
       return current;
@@ -134,6 +136,8 @@ export class Commerce {
       if (await tx.get(key)) throw new CommerceError('这个账号已被使用，请换一个或直接登录。', 409);
       await tx.put(key, { id: crypto.randomUUID(), name: username, salt, hash, created: Date.now(),
         freeReceipt: null, paidBalance: { single: 0, triple: 0, complex: 0 }, paidMemberUntil: 0, paidOrders: [] });
+      const total = await tx.get('audience:user-total');
+      if (total !== undefined) await tx.put('audience:user-total', total + 1);
     });
     return this.signIn(key);
   }
@@ -176,6 +180,11 @@ export class Commerce {
       if (!payload || typeof payload !== 'object' || Array.isArray(payload)) throw new CommerceError('请求格式不正确。');
       if (path === '/api/account/register') return await this.register(request, payload);
       if (path === '/api/account/login') return await this.login(request, payload);
+      if (path === '/api/visit') {
+        await this.rate(request, 'visit', 120, 3600000);
+        const result = await this.audience.visit(request, payload, await this.account(request, false));
+        return reply({ ok: true }, 200, result.cookie);
+      }
       const ip = request.headers.get('X-Visitor-IP');
       if (path.startsWith('/api/admin/')) {
         const auth = this.paid.auth;
@@ -193,6 +202,8 @@ export class Commerce {
           return reply(await auth.setup(payload));
         }
         await this.paid.admin(request, this.rate.bind(this));
+        if (path === '/api/admin/audience') return reply(await this.audience.overview());
+        if (path === '/api/admin/users') return reply(await this.audience.users(payload));
         if (path === '/api/admin/feedback') return reply(await this.feedback.list(payload));
         if (path === '/api/admin/order') {
           const order = await this.paid.findOrder(payload.order_id);

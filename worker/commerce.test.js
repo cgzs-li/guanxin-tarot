@@ -11,6 +11,9 @@ class MemoryStorage {
   async get(key) { return structuredClone(this.values.get(key)); }
   async put(key, value) { this.values.set(key, structuredClone(value)); }
   async delete(key) { return this.values.delete(key); }
+  async list({ prefix = '', startAfter, limit = Infinity } = {}) {
+    return new Map([...this.values].filter(([key]) => key.startsWith(prefix) && (!startAfter || key > startAfter)).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0).slice(0, limit).map(([key, value]) => [key, structuredClone(value)]));
+  }
   transaction(run) { const task = this.queue.then(() => run(this)); this.queue = task.catch(() => {}); return task; }
 }
 async function fixture(storage = new MemoryStorage()) {
@@ -55,6 +58,57 @@ function openTrial(f, ends = Date.now() + 86400000) {
   const vars = { GUANXIN_TRIAL_START: new Date(Date.now() - 1000).toISOString(), GUANXIN_TRIAL_END: new Date(ends).toISOString() };
   Object.assign(f.env, vars); Object.assign(f.gateway.env, vars); return ends;
 }
+
+test('visitor statistics deduplicate browser and page retries, link real sessions and remain admin-only', async () => {
+  const f = await fixture(), firstPage = crypto.randomUUID(), nextPage = crypto.randomUUID();
+  const first = await f.request('visit', { page_id: firstPage, username: 'forged-user' });
+  assert.equal(first.status, 200); assert.match(first.headers.get('Set-Cookie'), /HttpOnly; Secure; SameSite=Lax/);
+  const a = await register(f);
+  const cookie = first.cookie + '; ' + a.cookie;
+  await f.request('visit', { page_id: firstPage }, cookie);
+  await f.request('visit', { page_id: nextPage }, cookie);
+  await f.request('visit', { page_id: firstPage }, cookie);
+  const restarted = await fixture(f.storage), report = await restarted.request('admin/audience', {}, '', adminKey);
+  assert.equal(report.status, 200); assert.equal(report.body.stats.views, 2); assert.equal(report.body.stats.visitors, 1);
+  assert.equal(report.body.stats.today.visitors, 1); assert.equal(report.body.recent.length, 2);
+  assert.ok(report.body.recent.every(item => item.username === a.body.user.name));
+  assert.ok(report.body.recent.every(item => !('page_id' in item) && !('ip' in item)));
+  assert.ok((await f.storage.get('user:测试账号')).lastSeen);
+  assert.equal((await f.request('admin/audience', {})).status, 403);
+  assert.equal((await f.request('admin/users', {}, a.cookie)).status, 403);
+  assert.equal((await f.request('visit', { page_id: '<script>' })).status, 400);
+  await f.request('visit', { page_id: crypto.randomUUID() });
+  assert.equal((await f.request('admin/audience', {}, '', adminKey)).body.stats.visitors, 2);
+});
+
+test('visitor daily counts reset in Beijing time and recent records stay bounded', async () => {
+  const f = await fixture(), one = await f.request('visit', { page_id: crypto.randomUUID() });
+  for (let i = 0; i < 101; i++) await f.request('visit', { page_id: crypto.randomUUID() }, one.cookie);
+  const realNow = Date.now, now = realNow(); Date.now = () => now + 86400000;
+  try {
+    let report = (await f.request('admin/audience', {}, '', adminKey)).body;
+    assert.equal(report.stats.today.views, 0); assert.equal(report.stats.today.visitors, 0);
+    await f.request('visit', { page_id: crypto.randomUUID() }, one.cookie);
+    report = (await f.request('admin/audience', {}, '', adminKey)).body;
+    assert.equal(report.stats.views, 103); assert.equal(report.stats.visitors, 1);
+    assert.equal(report.stats.today.views, 1); assert.equal(report.stats.today.visitors, 1); assert.equal(report.recent.length, 100);
+  } finally { Date.now = realNow; }
+});
+
+test('admin user list includes legacy accounts, pages safely and never exposes credentials', async () => {
+  const f = await fixture();
+  for (let i = 0; i < 23; i++) await f.storage.put('user:legacy' + String(i).padStart(2, '0'), {
+    name: 'legacy' + String(i).padStart(2, '0'), created: 123, salt: 'private-salt', hash: 'private-hash', sessions: ['private-session'], paidBalance: {} });
+  const first = await f.request('admin/users', {}, '', adminKey);
+  assert.equal(first.body.total, 23); assert.equal(first.body.items.length, 20); assert.ok(first.body.next_after);
+  assert.deepEqual(Object.keys(first.body.items[0]).sort(), ['created', 'last_seen', 'username']);
+  const second = await f.request('admin/users', { after: first.body.next_after }, '', adminKey);
+  assert.equal(second.body.items.length, 3); assert.equal(second.body.next_after, null);
+  assert.equal(new Set(first.body.items.concat(second.body.items).map(u => u.username)).size, 23);
+  await register(f);
+  assert.equal((await f.request('admin/users', {}, '', adminKey)).body.total, 24);
+  assert.equal((await f.request('admin/users', { after: 'session:secret' }, '', adminKey)).status, 400);
+});
 
 test('trial is active only in a valid server window and expires exactly at its end', () => {
   const env = { GUANXIN_TRIAL_START: '2026-10-28T10:15:00+08:00', GUANXIN_TRIAL_END: '2026-10-30T10:15:00+08:00' };
