@@ -3,6 +3,30 @@ const commerce = { account: null, products: [], mode: 'free', requestId: '', pai
   busy: false, flow: 0, order: null, cartId: '', cartProduct: '', afterAuth: null };
 const money = cents => (cents / 100).toFixed(1).replace(/\.0$/, '');
 const tierName = { single: '单张', triple: '三张', complex: '复杂牌阵', monthly: '月卡' };
+let trialState = null, trialReceived = 0, trialTimer;
+function trialActive() { return Boolean(trialState?.active && trialState.server_now + Date.now() - trialReceived < trialState.ends_at); }
+function trialEndLabel() { return new Date(trialState.ends_at).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }); }
+function setTrial(state) {
+  if (!state) return;
+  const wasActive = trialActive(); trialState = state; trialReceived = Date.now();
+  clearTimeout(trialTimer);
+  if (state.active) trialTimer = setTimeout(() => { updateTrialUI(); switchReadingMode(commerce.mode); refreshAccount().catch(() => {}); }, Math.max(0, state.ends_at - state.server_now) + 50);
+  updateTrialUI();
+  if (!wasActive && trialActive()) switchReadingMode('paid');
+}
+function updateTrialUI() {
+  const active = trialActive();
+  $('trial-banner-copy').textContent = active ? '限时免费试用 · ' + trialEndLabel() + '（北京时间）前，登录即可免费使用 AI；当前暂停充值。' : '每账号一次免费本地解读；AI 解读和继续使用需要充值。';
+  for (const id of ['plans-open', 'plans-inline', 'member-plans']) $(id).hidden = active;
+  $('reading-paid-label').textContent = active ? '限时免费 AI 解读' : '付费 AI 解读';
+  $('reading-free-label').textContent = active ? '本地牌义解读' : '免费本地解读';
+  $('site-small-note').textContent = active ? '26 套牌阵 · 1–10 张牌 · 试用期不消耗原有次数' : '26 套牌阵 · 1–10 张牌 · 每个账号 1 次免费本地解读';
+  if (active) $('free-summary').textContent = '免费试用开放中 · AI 解读每次含 3 轮追问，服务繁忙时请稍后重试';
+  $('plans-trial-note').hidden = !active;
+  $('create-order').disabled = active || !commerce.products.length;
+  if (active) { $('plans-selection').hidden = true; $('checkout-payment').hidden = true; $('copy-payment-order').hidden = true; }
+  else { $('copy-payment-order').hidden = false; if (commerce.order) $('checkout-payment').hidden = commerce.order.status === 'paid'; }
+}
 function commercePayload() {
   return { question: userQuestion, theme, spread_id: selectedSpread.id, request_id: commerce.requestId,
     cards: draw.map((id, i) => ({ id, reversed: orientations[i] })),
@@ -29,6 +53,10 @@ function switchReadingMode(mode) {
     ? '每个账号有 1 次完整本地解读。不会调用 AI，点击阅读并成功生成后才使用机会。'
     : '套餐包含 AI 润色、动态三问与解读。点击润色或进入下一步会发送问题给模型；解读成功后使用 1 次对应权益。';
   $('start').textContent = mode === 'free' ? '开始我的免费体验 ↗' : '开始 AI 解读 ↗';
+  if (trialActive()) {
+    $('reading-mode-help').textContent = '限时试用：AI 润色、三问、解读与 3 轮追问免费；不扣原有次卡、月卡或免费机会。' + trialEndLabel() + '（北京时间）恢复原付费规则。';
+    $('start').textContent = mode === 'free' ? '开始本地解读 ↗' : '开始免费 AI 解读 ↗';
+  }
   if (commerce.account?.admin_test) { $('reading-mode-help').textContent = '负责人测试：可重复抽牌、解读和追问，不充值、不扣次。模型服务本身的可用性仍适用。'; $('start').textContent = mode === 'free' ? '测试本地解读 ↗' : '测试 AI 解读 ↗'; }
   updateChargeNote(); updatePreparationUI();
 }
@@ -51,6 +79,7 @@ function updateChargeNote() {
     ? '本次为免费本地解读 · 成功生成后使用 1 次免费机会，不含 AI。'
     : '本次为付费 AI 解读 · 成功生成后使用对应牌阵 1 次权益，模型失败不扣次。';
   if (commerce.account?.admin_test) $('reading-charge-note').textContent = '负责人测试 · 无需充值，不扣次数';
+  else if (trialActive()) $('reading-charge-note').textContent = '限时免费试用 · 本次不扣次卡、月卡或原免费机会';
 }
 function showAuth(tab = 'login', after) {
   if (after) commerce.afterAuth = after;
@@ -71,6 +100,7 @@ function setAuthTab(tab) {
   $('auth-status').textContent = '';
 }
 function setAccount(data) {
+  setTrial(data?.trial);
   const wasAdmin = commerce.account?.admin_test;
   if (data?.user && !data.orders && data.user.id === commerce.account?.user.id) data = { ...data, orders: commerce.account.orders };
   commerce.account = data?.user ? data : null;
@@ -83,8 +113,9 @@ function setAccount(data) {
   $('free-summary').textContent = data?.user
     ? (free ? '你的免费本地解读还未使用' : '你的免费本地解读已使用')
     : '注册即可领取 1 次免费本地解读';
-  if (!data?.user) return;
+  if (!data?.user) { if (trialActive()) $('free-summary').textContent = '登录或注册即可参加两天免费 AI 试用'; return; }
   if (data.admin_test) $('free-summary').textContent = '负责人测试 · 本地和 AI 均可重复使用，无需充值';
+  else if (trialActive()) $('free-summary').textContent = '限时免费试用开放中 · 原有权益保留，不扣次数';
   $('member-name').textContent = data.user.name;
   $('member-free').textContent = data.admin_test ? '负责人不限次数测试 · 不扣免费机会' : free ? '1 次 · 不含 AI' : '已使用';
   const paid = data.paid, activeMember = paid.member_until > Date.now();
@@ -123,6 +154,7 @@ function showCheckout(order) {
   $('checkout-panel').hidden = false; $('plans-selection').hidden = true;
   if ($('account-dialog').open) closeDialog($('account-dialog'));
   if (!$('plans-dialog').open) openDialog($('plans-dialog'));
+  updateTrialUI();
   $('checkout-title').focus();
 }
 async function viewOrder(order, button) {
@@ -163,6 +195,7 @@ function renderProducts() {
   }
 }
 function openPlans() {
+  if (trialActive()) { $('input-error').textContent = '目前是免费试用期，无需充值。登录后直接开始 AI 解读即可。'; return; }
   $('checkout-panel').hidden = true; $('plans-selection').hidden = false; $('plans-status').textContent = '';
   const tier = selectedSpread.slots.length === 1 ? 'single' : selectedSpread.slots.length === 3 ? 'triple' : 'complex';
   const radio = document.querySelector('[name="product"][value="' + tier + '-1"]');
@@ -182,7 +215,9 @@ async function readCommercial() {
     if (data.account) setAccount(data.account);
     commerce.paidData = data.answer ? data : null;
     showLocalReading();
-    $('reading-result-label').textContent = data.admin_test ? (data.answer ? '负责人 AI 测试 · 不扣次数' : '负责人本地测试 · 不扣次数') : data.answer ? 'AI 综合解读 · 已使用付费权益' : '免费本地解读 · 未使用 AI';
+    $('reading-result-label').textContent = data.admin_test ? (data.answer ? '负责人 AI 测试 · 不扣次数' : '负责人本地测试 · 不扣次数') : data.trial ? (data.answer ? '限时免费 AI 解读 · 未扣次数' : '限时免费本地解读 · 未扣次数') : data.answer ? 'AI 综合解读 · 已使用付费权益' : '免费本地解读 · 未使用 AI';
+    $('reading-feedback').hidden = false; $('feedback-submit').disabled = false; $('feedback-status').textContent = ''; $('feedback-form').reset();
+    $('feedback-form').dataset.readingId = commerce.requestId;
     await prepareAI();
   } catch (error) {
     if (version !== commerce.flow) return;
@@ -201,6 +236,7 @@ function commercePrepareAI() {
   $('ai-generate').disabled = Boolean(commerce.paidData);
   $('ai-generate').textContent = commerce.paidData ? 'AI 解读已生成' : '使用付费 AI 解读';
   $('ai-panel').querySelector('.ai-intro').textContent = commerce.paidData ? '以下为大模型针对本次问题和固定牌面的回答。' : '本地免费解读已完成。AI 解读和追问需先充值，可沿用当前这组牌。';
+  if (!commerce.paidData && trialActive()) { $('ai-generate').textContent = '免费生成 AI 解读'; $('ai-panel').querySelector('.ai-intro').textContent = '试用期可免费使用 AI，沿用当前这组牌，不消耗原有次数。'; }
   if (commerce.paidData) {
     aiSession = commerce.paidData.session_id;
     aiMessage('assistant', commerce.paidData.answer);
@@ -208,6 +244,7 @@ function commercePrepareAI() {
     $('ai-followup-help').textContent = commerce.paidData.admin_test ? '负责人测试：可继续追问，沿用同一组牌，不扣次数。' : '还可追问 ' + commerce.paidData.followup_remaining + ' 轮；沿用同一组牌。';
   }
   aiStatus(commerce.paidData ? 'AI 解读已生成；本地牌义仍可在下方对照。' : '每账号只有一次免费本地解读。继续解读或使用 AI 需要充值。');
+  if (!commerce.paidData && trialActive()) aiStatus('试用期 AI 免费，每次解读包含 3 轮追问。');
 }
 async function commerceFollowup(payload) {
   const version = aiVersion, controller = new AbortController();
@@ -235,7 +272,7 @@ async function commerceFollowup(payload) {
 document.querySelectorAll('[name="reading-mode"]').forEach(input => input.addEventListener('change', () => switchReadingMode(input.value)));
 $('start').addEventListener('click', event => {
   if (!$('user-question').value.trim()) return;
-  if (!commerce.account || (commerce.mode === 'free' && !commerce.account.free_remaining) || (commerce.mode === 'paid' && !hasPaidAccess())) {
+  if (!commerce.account || (!trialActive() && commerce.mode === 'free' && !commerce.account.free_remaining) || (commerce.mode === 'paid' && !hasPaidAccess())) {
     event.stopImmediatePropagation(); event.preventDefault();
     if (!commerce.account) showAuth('register');
     else { if (commerce.mode === 'free') switchReadingMode('paid'); $('input-error').textContent = '免费本地解读已使用，继续解读请先充值。'; openPlans(); }
@@ -245,8 +282,18 @@ $('begin-draw').addEventListener('click', () => {
   if ($('session').hidden) return;
   commerce.requestId = crypto.randomUUID(); commerce.paidData = null; commerce.flow++; commerce.followupId = '';
   $('session-error').textContent = ''; $('reading-result-label').textContent = ''; updateChargeNote();
+  $('reading-feedback').hidden = true; delete $('feedback-form').dataset.readingId;
 });
-$('reset').addEventListener('click', () => { commerce.flow++; commerce.paidData = null; });
+$('reset').addEventListener('click', () => { commerce.flow++; commerce.paidData = null; $('reading-feedback').hidden = true; delete $('feedback-form').dataset.readingId; });
+$('feedback-form').addEventListener('submit', async event => {
+  event.preventDefault(); const readingId = $('feedback-form').dataset.readingId, flow = commerce.flow;
+  if (!readingId) return;
+  $('feedback-submit').disabled = true; $('feedback-status').textContent = '正在提交反馈…';
+  try {
+    await commerceAPI('/api/feedback', { reading_id: readingId, rating: Number($('feedback-rating').value), message: $('feedback-message').value });
+    if (flow === commerce.flow) $('feedback-status').textContent = '反馈已收到，谢谢！负责人可在后台查看。';
+  } catch (error) { if (flow === commerce.flow) { $('feedback-status').textContent = error.message; $('feedback-submit').disabled = false; } }
+});
 $('plans-open').addEventListener('click', openPlans);
 $('plans-inline').addEventListener('click', openPlans);
 $('member-plans').addEventListener('click', openPlans);
@@ -281,6 +328,7 @@ $('account-logout').addEventListener('click', async () => {
   $('account-logout').disabled = true;
   try {
     await commerceAPI('/api/account/logout', {}); setAccount(null); resetAI(); commerce.flow++; commerce.paidData = null;
+    $('reading-feedback').hidden = true; delete $('feedback-form').dataset.readingId;
     $('home').hidden = false; $('intake').hidden = true; $('session').hidden = true; $('results').replaceChildren();
     $('user-question').value = ''; $('user-question').dispatchEvent(new Event('input')); intakeAnswers = []; intakeDraftKey = '';
     setJourney(0); closeDialog($('account-dialog'));
@@ -352,7 +400,7 @@ $('checkout-return').addEventListener('click', () => { closeDialog($('plans-dial
 $('share-site').addEventListener('click', async () => {
   const url = 'https://tarot.ruichi0201.cn/?from=share';
   try {
-    if (navigator.share) await navigator.share({ title: '观心 · 留一点时间，听见自己', text: '一次免费的卡牌自我探索，不含 AI，了解当下与下一步。', url });
+    if (navigator.share) await navigator.share({ title: '观心 · 留一点时间，听见自己', text: trialActive() ? '限时免费 AI 卡牌自我探索，' + trialEndLabel() + '（北京时间）结束试用，之后恢复套餐。' : '一次免费的卡牌自我探索，不含 AI，了解当下与下一步。', url });
     else { await navigator.clipboard.writeText(url); $('share-status').textContent = '网站链接已复制，不包含你的问题或抽牌结果。'; }
   } catch (error) {
     if (error.name !== 'AbortError') $('share-status').textContent = '可直接分享网址：' + url;
@@ -361,7 +409,7 @@ $('share-site').addEventListener('click', async () => {
 switchReadingMode('free');
 Promise.allSettled([
   refreshAccount(),
-  commerceAPI('/api/catalog').then(data => { commerce.products = data.products; renderProducts(); $('create-order').disabled = false; })
+  commerceAPI('/api/catalog').then(data => { setTrial(data.trial); commerce.products = data.products; renderProducts(); $('create-order').disabled = trialActive(); })
 ]).then(results => {
   if (results[0].status === 'rejected') $('free-summary').textContent = '账号服务暂时不可用，请刷新后重试。';
   if (results[1].status === 'rejected') {
@@ -374,5 +422,6 @@ Promise.allSettled([
 function hasPaidAccess() {
   const paid = commerce.account?.paid;
   if (commerce.account?.admin_test) return true;
+  if (commerce.account && trialActive()) return true;
   return Boolean(paid && (Object.values(paid.balance).some(n => n > 0) || (paid.remaining_today && Object.values(paid.remaining_today).some(n => n > 0))));
 }

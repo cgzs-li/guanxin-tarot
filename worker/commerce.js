@@ -1,5 +1,7 @@
 // Account-based trial and manually verified paid access. Legacy demo balances are never used.
 import { PaidService, paidPaths, paidSummary } from './paid.js';
+import { trialWindow } from './trial.js';
+import { Feedback } from './feedback.js';
 const enc = new TextEncoder();
 const DAY = 86400000;
 const SESSION_COOKIE = '__Host-guanxin_session';
@@ -14,7 +16,7 @@ export const products = [
 ];
 export const commercePaths = new Set([
   '/api/account/me', '/api/account/register', '/api/account/login', '/api/account/logout',
-  '/api/free/reading', '/api/paid/polish', '/api/paid/intake-questions', ...paidPaths
+  '/api/free/reading', '/api/feedback', '/api/admin/feedback', '/api/paid/polish', '/api/paid/intake-questions', ...paidPaths
 ]);
 class CommerceError extends Error {
   constructor(message, status = 400) { super(message); this.status = status; }
@@ -57,8 +59,8 @@ function allowance(user) {
     paid: paidSummary(user) };
 }
 export class Commerce {
-  constructor(state, validate, gateway) { this.storage = state.storage; this.validate = validate; this.gateway = gateway; this.paid = new PaidService(state, gateway, products); }
-  accountData(user) { return allowance(user); }
+  constructor(state, validate, gateway) { this.storage = state.storage; this.validate = validate; this.gateway = gateway; this.paid = new PaidService(state, gateway, products); this.feedback = new Feedback(state.storage); }
+  accountData(user) { return { ...allowance(user), trial: trialWindow(this.gateway.env) }; }
   async rate(request, kind, limit, windowMs) {
     const key = 'rate:' + kind + ':' + (await digest(request.headers.get('X-Visitor-IP') || 'unknown')).slice(0, 32);
     await this.storage.transaction(async tx => {
@@ -109,15 +111,15 @@ export class Commerce {
       return current;
     });
     await this.paid.recover({ key: userKey });
-    return reply(allowance(await this.storage.get(userKey)), 200, SESSION_COOKIE + '=' + token + '; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=604800');
+    return reply(this.accountData(await this.storage.get(userKey)), 200, SESSION_COOKIE + '=' + token + '; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=604800');
   }
   async me(request) {
     const account = await this.account(request, false);
-    if (!account) return reply({ mode: 'paid', user: null });
+    if (!account) return reply({ mode: 'paid', user: null, trial: trialWindow(this.gateway.env) });
     await this.paid.recover(account);
     account.user = await this.storage.get(account.key);
     const orders = await Promise.all((account.user.paidOrders || []).slice(-20).reverse().map(orderId => this.storage.get('paid-order:' + orderId)));
-    return reply({ ...allowance(account.user), orders: orders.filter(Boolean).map(o => this.paid.publicOrder(o)) });
+    return reply({ ...this.accountData(account.user), orders: orders.filter(Boolean).map(o => this.paid.publicOrder(o)) });
   }
   async register(request, payload) {
     await this.rate(request, 'register', 5, 3600000);
@@ -142,7 +144,7 @@ export class Commerce {
     if (owner && name(owner.username) === username) {
       const result = await this.paid.auth.login({ username: owner.username, password: pass }, request, this.rate.bind(this));
       const account = await this.ownerAccount({ username: owner.username });
-      return reply(allowance(account.user), 200, result.cookie);
+      return reply(this.accountData(account.user), 200, result.cookie);
     }
     const key = 'user:' + username, user = await this.storage.get(key);
     const hash = await passwordHash(pass, user?.salt || 'missing-account-salt');
@@ -151,7 +153,10 @@ export class Commerce {
   }
   async freeReading(account, payload) {
     const context = this.validate(payload);
-    if (account.isAdmin) return reply({ context, account: allowance(account.user), mode: 'local', admin_test: true });
+    if (account.isAdmin || trialWindow(this.gateway.env).active) {
+      id(payload.request_id); await this.feedback.grant(account, payload, 'local');
+      return reply({ context, receipt_id: payload.request_id, account: this.accountData(account.user), mode: 'local', admin_test: Boolean(account.isAdmin), trial: !account.isAdmin });
+    }
     const operation = id(payload.request_id), fingerprint = await digest(JSON.stringify(context));
     const user = await this.storage.transaction(async tx => {
       const user = await tx.get(account.key);
@@ -161,7 +166,8 @@ export class Commerce {
       await tx.put(account.key, user);
       return user;
     });
-    return reply({ context, receipt_id: operation, account: allowance(user), mode: 'local' });
+    await this.feedback.grant(account, payload, 'local');
+    return reply({ context, receipt_id: operation, account: this.accountData(user), mode: 'local' });
   }
   async fetch(request, payload) {
     try {
@@ -180,18 +186,22 @@ export class Commerce {
         if (path === '/api/admin/logout') return reply({ ok: true }, 200, await auth.logout(request));
         if (path === '/api/admin/session') {
           const session = await auth.session(request);
-          return reply({ authenticated: Boolean(session), username: session?.username || null });
+          return reply({ authenticated: Boolean(session), username: session?.username || null, trial: trialWindow(this.gateway.env) });
         }
         if (path === '/api/admin/setup') {
           await this.paid.admin(request, this.rate.bind(this), true);
           return reply(await auth.setup(payload));
         }
         await this.paid.admin(request, this.rate.bind(this));
+        if (path === '/api/admin/feedback') return reply(await this.feedback.list(payload));
         if (path === '/api/admin/order') {
           const order = await this.paid.findOrder(payload.order_id);
           return reply({ order: { ...this.paid.publicOrder(order), username: order.username } });
         }
-        if (path === '/api/admin/confirm') return reply(await this.paid.confirm(payload));
+        if (path === '/api/admin/confirm') {
+          if (trialWindow(this.gateway.env).active) throw new CommerceError('限时免费试用期间暂停收款开通，原有权益保留。', 403);
+          return reply(await this.paid.confirm(payload));
+        }
         if (path === '/api/admin/model-check') {
           this.paid.checkAI();
           await this.rate(request, 'model-check', 3, 3600000);
@@ -208,15 +218,23 @@ export class Commerce {
         return response;
       }
       if (path === '/api/free/reading') return await this.freeReading(account, payload);
+      if (path === '/api/feedback') return reply(await this.feedback.submit(account, payload));
       if (path === '/api/paid/polish' || path === '/api/paid/intake-questions')
         return reply(await this.paid.prepare(account, payload, ip, path === '/api/paid/polish'));
-      if (path === '/api/order') return reply(await this.paid.order(account, payload));
+      if (path === '/api/order') {
+        if (trialWindow(this.gateway.env).active) throw new CommerceError('限时免费试用期间暂停充值下单，直接开始解读即可。', 403);
+        return reply(await this.paid.order(account, payload));
+      }
       if (path === '/api/order/status') {
         const order = await this.paid.findOrder(payload.order_id);
         if (order.userId !== account.user.id) throw new CommerceError('没有找到属于你的订单。', 404);
-        return reply({ order: this.paid.publicOrder(order), account: allowance(await this.storage.get(account.key)) });
+        return reply({ order: this.paid.publicOrder(order), account: this.accountData(await this.storage.get(account.key)) });
       }
-      if (path === '/api/paid/reading') return reply(await this.paid.reading(account, payload, ip));
+      if (path === '/api/paid/reading') {
+        const result = await this.paid.reading(account, payload, ip);
+        await this.feedback.grant(account, payload, result.trial ? 'trial-ai' : account.isAdmin ? 'owner-ai' : 'paid-ai');
+        return reply(result);
+      }
       if (path === '/api/paid/followup') return reply(await this.paid.followup(account, payload, ip));
       return reply({ error: '接口不存在。' }, 404);
     } catch (error) {

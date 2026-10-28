@@ -1,5 +1,6 @@
 import { cardLibrary, spreads, SYSTEM_PROMPT } from './generated-library.js';
 import { Commerce, commercePaths, products } from './commerce.js';
+import { trialWindow } from './trial.js';
 
 const spreadMap = new Map(spreads.map(s => [s.id, s]));
 const routes = new Set(['/api/polish', '/api/intake-questions', '/api/recommend-spread', '/api/reading', '/api/followup']);
@@ -85,7 +86,7 @@ export default {
     if (url.pathname === '/api/status' && request.method === 'GET')
       return json({ configured: enabled(env.GUANXIN_AI_ENABLED) && Boolean(env.FLOWBEE_API_KEY && env.FLOWBEE_MODEL), mode: 'paid', payment_mode: 'manual', real_ai_available: enabled(env.GUANXIN_AI_ENABLED) && Boolean(env.FLOWBEE_API_KEY && env.FLOWBEE_MODEL) });
     if (url.pathname === '/api/catalog' && request.method === 'GET')
-      return json({ mode: 'paid', products, payment_mode: 'manual' });
+      return json({ mode: 'paid', products, payment_mode: 'manual', trial: trialWindow(env) });
     if (url.pathname.startsWith('/api/')) {
       if (url.pathname.startsWith('/api/demo/')) return json({ error: '演示接口已停用，请使用正式套餐。' }, 410);
       if (!routes.has(url.pathname) && !commercePaths.has(url.pathname)) return json({ error: '接口不存在。' }, 404);

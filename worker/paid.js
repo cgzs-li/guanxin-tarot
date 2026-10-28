@@ -1,4 +1,5 @@
 import { AdminAuth } from './admin-auth.js';
+import { trialWindow } from './trial.js';
 const DAY = 86400000;
 const day = () => new Date(Date.now() + 28800000).toISOString().slice(0, 10);
 export const paidPaths = new Set(['/api/order', '/api/order/status', '/api/paid/reading', '/api/paid/followup',
@@ -112,7 +113,7 @@ export class PaidService {
   async prepare(account, payload, ip, polish) {
     this.checkAI();
     const paid = paidSummary(account.user);
-    if (!account.isAdmin && !Object.values(paid.balance).some(n => n > 0) &&
+    if (!account.isAdmin && !trialWindow(this.gateway.env).active && !Object.values(paid.balance).some(n => n > 0) &&
       !Object.values(paid.remaining_today || {}).some(n => n > 0))
       throw new PaidError('AI 润色与三问随付费解读提供，请先充值套餐。', 402);
     return polish ? this.gateway.polish(payload, ip, account.isAdmin === true)
@@ -141,24 +142,26 @@ export class PaidService {
       const cap = tier === 'complex' ? 1 : 3;
       let source;
       if (account.isAdmin) source = 'owner';
+      else if (trialWindow(this.gateway.env).active) source = 'trial';
       else if (user.paidMemberUntil > Date.now() && user.paidUsed[tier] < cap) { source = 'monthly'; user.paidUsed[tier]++; }
       else if (user.paidBalance[tier] > 0) { source = 'pack'; user.paidBalance[tier]--; }
       else throw new PaidError('当前牌阵的付费次数不足，请先充值对应套餐。', 402);
       const saved = { status: 'pending', fingerprint, tier, source, day: day(), lock, lease: Date.now() + 120000,
-        limit: source === 'owner' ? Number.MAX_SAFE_INTEGER : source === 'monthly' ? 3 : 1, sessionId: crypto.randomUUID() };
+        trialEndsAt: source === 'trial' ? trialWindow(this.gateway.env).ends_at : null,
+        limit: source === 'owner' ? Number.MAX_SAFE_INTEGER : source === 'monthly' || source === 'trial' ? 3 : 1, sessionId: crypto.randomUUID() };
       user.paidPending = key; await tx.put(key, saved); await tx.put(account.key, user); return saved;
     });
     if (reservation.status === 'done') return { ...(await this.gateway.open(reservation.result)).response, account: await this.accountData(account) };
     try {
       const result = await this.gateway.reading(payload, ip, account.isAdmin === true);
-      const response = { answer: result.answer, session_id: reservation.sessionId, followup_remaining: reservation.limit, admin_test: account.isAdmin === true };
+      const response = { answer: result.answer, session_id: reservation.sessionId, followup_remaining: reservation.limit, admin_test: account.isAdmin === true, trial: reservation.source === 'trial' };
       const expires = Date.now() + 3600000;
       const encrypted = await this.gateway.seal({ version: 1, history: [], response, expires });
       await this.storage.transaction(async tx => {
         const current = await tx.get(key);
         if (current?.lock !== lock || current.status !== 'pending') throw new PaidError('生成状态已变化，请刷新查看权益。', 409);
         await tx.put('paid-conversation:' + reservation.sessionId, { userId: account.user.id, adminTest: account.isAdmin === true, token: result.session_id,
-          used: 0, limit: reservation.limit, expires });
+          used: 0, limit: reservation.limit, trialEndsAt: reservation.trialEndsAt, expires });
         await tx.put(key, { ...current, status: 'done', result: encrypted, expires });
         const user = await tx.get(account.key); if (user.paidPending === key) user.paidPending = null; await tx.put(account.key, user);
       });
@@ -204,6 +207,7 @@ export class PaidService {
       const old = await tx.get(key);
       if (old && old.fingerprint !== fingerprint) throw new PaidError('该操作编号已用于其他追问。', 409);
       if (old?.result) return { cached: old.result };
+      if (session.trialEndsAt && Date.now() >= session.trialEndsAt) throw new PaidError('免费试用已结束，继续使用 AI 请开通套餐。', 402);
       if (session.adminTest && !account.isAdmin) throw new PaidError('请重新登录负责人账号。', 403);
       if (session.pending?.lease > Date.now()) throw new PaidError('上一条追问仍在回答，请稍后重试。', 409);
       if (session.used >= session.limit) throw new PaidError('本次追问次数已用完，请充值后开始新的解读。', 402);

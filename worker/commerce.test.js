@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import worker, { AIGateway } from './index.js';
 import { spreads } from './generated-library.js';
+import { trialWindow } from './trial.js';
 
 const adminKey = 'fictional-owner-key-for-tests-only-123456789';
 const sha = async value => Buffer.from(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value))).toString('hex');
@@ -50,6 +51,118 @@ async function model(run, status = 200, content = '虚构模型回答：先安�
     ? { choices: [{ message: { content } }] } : { error: 'private upstream body' }, { status }); };
   try { return await run(calls); } finally { globalThis.fetch = original; }
 }
+function openTrial(f, ends = Date.now() + 86400000) {
+  const vars = { GUANXIN_TRIAL_START: new Date(Date.now() - 1000).toISOString(), GUANXIN_TRIAL_END: new Date(ends).toISOString() };
+  Object.assign(f.env, vars); Object.assign(f.gateway.env, vars); return ends;
+}
+
+test('trial is active only in a valid server window and expires exactly at its end', () => {
+  const env = { GUANXIN_TRIAL_START: '2026-10-28T10:15:00+08:00', GUANXIN_TRIAL_END: '2026-10-30T10:15:00+08:00' };
+  const start = Date.parse(env.GUANXIN_TRIAL_START), end = Date.parse(env.GUANXIN_TRIAL_END);
+  assert.equal(end - start, 48 * 3600000); assert.equal(trialWindow(env, start - 1).active, false);
+  assert.equal(trialWindow(env, start).active, true); assert.equal(trialWindow(env, end - 1).active, true);
+  assert.equal(trialWindow(env, end).active, false); assert.equal(trialWindow({ ...env, GUANXIN_TRIAL_END: 'bad' }).active, false);
+  assert.equal(trialWindow({}).active, false);
+});
+
+test('trial allows real paid endpoints and repeated local readings without spending existing rights', async () => {
+  const f = await fixture(), a = await register(f); await buy(f, a.cookie); await buy(f, a.cookie, 'monthly');
+  const before = (await f.request('account/me', undefined, a.cookie)).body; openTrial(f);
+  await model(async () => {
+    for (const id of ['single', 'basic', spreads.find(s => s.slots.length > 3 && s.category !== '选择').id]) {
+      const result = await f.request('paid/reading', reading(id), a.cookie);
+      assert.equal(result.status, 200); assert.equal(result.body.trial, true); assert.equal(result.body.followup_remaining, 3);
+    }
+    assert.equal((await f.request('paid/polish', reading(), a.cookie)).status, 200);
+  });
+  for (let i = 0; i < 2; i++) assert.equal((await f.request('free/reading', reading(), a.cookie)).status, 200);
+  const after = (await f.request('account/me', undefined, a.cookie)).body;
+  assert.deepEqual(after.paid, before.paid); assert.equal(after.free_remaining, before.free_remaining);
+  assert.equal(after.orders.length, before.orders.length);
+  assert.equal((await f.request('paid/reading', reading())).status, 401);
+});
+
+test('zero balance users get trial AI, preparation and three followups, then original rules resume', async () => {
+  const f = await fixture(), a = await register(f), end = openTrial(f, Date.now() + 60000);
+  await model(async calls => {
+    assert.equal((await f.request('paid/polish', reading(), a.cookie)).status, 200);
+    const result = await f.request('paid/reading', reading(), a.cookie); assert.equal(result.status, 200);
+    for (let i = 0; i < 3; i++) assert.equal((await f.request('paid/followup', { session_id: result.body.session_id, request_id: crypto.randomUUID(), message: '虚构追问'+i }, a.cookie)).body.followup_remaining, 2 - i);
+    assert.equal((await f.request('paid/followup', { session_id: result.body.session_id, request_id: crypto.randomUUID(), message: '超过三轮' }, a.cookie)).status, 402);
+    const realNow = Date.now; Date.now = () => end;
+    try {
+      assert.equal((await f.request('paid/reading', reading(), a.cookie)).status, 402);
+      assert.equal((await f.request('paid/polish', reading(), a.cookie)).status, 402);
+      assert.equal((await f.request('account/me', undefined, a.cookie)).body.trial.active, false);
+    } finally { Date.now = realNow; }
+    assert.equal(calls.length, 5);
+  });
+});
+
+test('trial closes checkout and confirmation server-side, reopens orders after expiry, and exposes its schedule', async () => {
+  const f = await fixture(), a = await register(f), pending = await order(f, a.cookie); const end = openTrial(f, Date.now() + 60000);
+  assert.equal((await f.request('order', { product_id: 'single-1', request_id: crypto.randomUUID() }, a.cookie)).status, 403);
+  assert.equal((await f.request('admin/confirm', { order_id: pending.id, amount_cents: pending.price, reference: 'fictional-trial-receipt' }, '', adminKey)).status, 403);
+  assert.equal((await f.request('order/status', { order_id: pending.id }, a.cookie)).body.order.status, 'pending');
+  assert.equal((await f.request('account/me')).body.trial.active, true);
+  const catalog = await worker.fetch(new Request('https://site.invalid/api/catalog'), f.env); assert.equal((await catalog.json()).trial.active, true);
+  const realNow = Date.now; Date.now = () => end;
+  try { assert.equal((await f.request('order', { product_id: 'single-1', request_id: crypto.randomUUID() }, a.cookie)).status, 200); }
+  finally { Date.now = realNow; }
+});
+
+test('trial followup cannot make a new model call after expiry and failed models preserve all rights', async () => {
+  const f = await fixture(), a = await register(f); const end = openTrial(f, Date.now() + 60000); let response;
+  await model(async () => { response = await f.request('paid/reading', reading(), a.cookie); });
+  const realNow = Date.now; Date.now = () => end;
+  try { await model(async calls => { assert.equal((await f.request('paid/followup', { session_id: response.body.session_id, request_id: crypto.randomUUID(), message: '到期后的新问题' }, a.cookie)).status, 402); assert.equal(calls.length, 0); }); }
+  finally { Date.now = realNow; }
+  await model(async () => assert.equal((await f.request('paid/reading', reading(), a.cookie)).status, 502), 429);
+  const user = (await f.request('account/me', undefined, a.cookie)).body;
+  assert.equal(user.free_remaining, 1); assert.deepEqual(user.paid.balance, { single: 0, triple: 0, complex: 0 });
+});
+
+test('feedback requires a completed owned reading, is private and persists idempotently', async () => {
+  const f = await fixture(), a = await register(f), b = await register(f, '反馈其他账号'), p = reading();
+  const input = { reading_id: p.request_id, rating: 4, message: '虚构测试：建议说明更清楚。<img src=x onerror=alert(1)>' };
+  assert.equal((await f.request('feedback', input)).status, 401);
+  assert.equal((await f.request('feedback', input, a.cookie)).status, 403);
+  await f.request('free/reading', p, a.cookie);
+  assert.equal((await f.request('feedback', input, b.cookie)).status, 403);
+  const results = await Promise.all([f.request('feedback', input, a.cookie), f.request('feedback', input, a.cookie)]);
+  assert.ok(results.every(r => r.status === 200)); assert.equal(await f.storage.get('feedback-total'), 1);
+  assert.equal((await f.request('feedback', { ...input, message: '改动后的反馈' }, a.cookie)).status, 409);
+  assert.equal((await f.request('admin/feedback', {}, a.cookie)).status, 403);
+  const restarted = await fixture(f.storage), list = await restarted.request('admin/feedback', {}, '', adminKey);
+  assert.equal(list.body.total, 1); assert.equal(list.body.items[0].username, '测试账号'); assert.equal(list.body.items[0].message, input.message);
+  assert.equal(list.body.items[0].spread_id, p.spread_id);
+  assert.equal(list.body.items[0].question, undefined); assert.equal(list.body.items[0].answer, undefined);
+});
+
+test('AI feedback is granted only after success and accepts a rating without extra text', async () => {
+  const f = await fixture(), a = await register(f); openTrial(f); const p = reading();
+  await model(async () => assert.equal((await f.request('paid/reading', p, a.cookie)).status, 502), 429);
+  assert.equal((await f.request('feedback', { reading_id: p.request_id, rating: 5, message: '' }, a.cookie)).status, 403);
+  await model(async () => assert.equal((await f.request('paid/reading', p, a.cookie)).status, 200));
+  assert.equal((await f.request('feedback', { reading_id: p.request_id, rating: 5, message: '' }, a.cookie)).status, 200);
+  const item = (await f.request('admin/feedback', {}, '', adminKey)).body.items[0]; assert.equal(item.mode, 'trial-ai');
+});
+
+test('feedback validates ratings, length and pagination, limits each account and pages without gaps', async () => {
+  const f = await fixture(), a = await register(f); openTrial(f); const p = reading(); await f.request('free/reading', p, a.cookie);
+  for (const rating of [0, 6, '5', 2.5]) assert.equal((await f.request('feedback', { reading_id: p.request_id, rating, message: '' }, a.cookie)).status, 400);
+  assert.equal((await f.request('feedback', { reading_id: p.request_id, rating: 5, message: '字'.repeat(1001) }, a.cookie)).status, 400);
+  for (const [index, user] of [a, await register(f, '反馈第二人'), await register(f, '反馈第三人')].entries()) {
+    for (let i = 0; i < (index < 2 ? 10 : 3); i++) { const q = reading(); await f.request('free/reading', q, user.cookie); assert.equal((await f.request('feedback', { reading_id: q.request_id, rating: 3, message: '虚构'+i }, user.cookie)).status, 200); }
+  }
+  assert.equal((await f.request('feedback', { reading_id: p.request_id, rating: 5, message: '' }, a.cookie)).status, 429);
+  const first = (await f.request('admin/feedback', {}, '', adminKey)).body;
+  assert.equal(first.total, 23); assert.equal(first.items.length, 20);
+  const second = (await f.request('admin/feedback', { before: first.next_before }, '', adminKey)).body;
+  assert.equal(second.items.length, 3); assert.equal(second.next_before, null);
+  assert.equal(new Set([...first.items, ...second.items].map(i => i.id)).size, 23);
+  assert.equal((await f.request('admin/feedback', { before: -1 }, '', adminKey)).status, 400);
+});
 
 test('registration stores a salted hash and opaque secure sessions; legacy demo rights do not appear', async () => {
   const f = await fixture(), a = await register(f);

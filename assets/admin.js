@@ -1,5 +1,31 @@
 const el = id => document.getElementById(id);
 let currentOrder = null;
+let adminTrial = null, feedbackBefore = null, feedbackBusy = false;
+function trialOpen() { return Boolean(adminTrial?.active && Date.now() < adminTrial.ends_at); }
+function trialMessage(data) {
+  adminTrial = data;
+  el('trial-admin-status').textContent = trialOpen() ? '免费试用开放中，暂停收款开通；北京时间 ' + new Date(data.ends_at).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }) + ' 自动恢复付费。原有权益保留。' : '当前按原付费规则开放。';
+}
+async function loadFeedback(more = false) {
+  if (feedbackBusy) return;
+  feedbackBusy = true; el('feedback-refresh').disabled = true; el('feedback-more').disabled = true;
+  el('feedback-list-status').textContent = '正在读取反馈…';
+  try {
+    const data = await adminAPI('feedback', more && feedbackBefore ? { before: feedbackBefore } : {});
+    if (!more) el('admin-feedback-list').replaceChildren();
+    for (const item of data.items) {
+      const li = document.createElement('li'), title = document.createElement('h3'), meta = document.createElement('p'), message = document.createElement('p');
+      title.textContent = item.rating + ' / 5 分 · ' + item.username;
+      meta.className = 'feedback-meta'; meta.textContent = new Date(item.created).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }) + ' · 牌阵 ' + item.spread_id + ' · ' + ({ 'trial-ai': '免费 AI 试用', 'owner-ai': '负责人测试', 'paid-ai': '付费 AI', local: '本地解读' }[item.mode] || item.mode) + ' · 反馈编号 ' + item.id;
+      message.className = 'feedback-message'; message.textContent = item.message || '用户仅提交了评分。'; li.append(title, meta, message); el('admin-feedback-list').append(li);
+    }
+    feedbackBefore = data.next_before; el('feedback-more').hidden = !feedbackBefore;
+    el('feedback-list-status').textContent = data.total ? '共收到 ' + data.total + ' 条反馈，已显示 ' + el('admin-feedback-list').childElementCount + ' 条。' : '还没有用户反馈。用户完成解读并提交后会显示在这里。';
+  } catch (error) { el('feedback-list-status').textContent = error.message; }
+  finally { feedbackBusy = false; el('feedback-refresh').disabled = false; el('feedback-more').disabled = false; }
+}
+el('feedback-refresh').addEventListener('click', () => loadFeedback());
+el('feedback-more').addEventListener('click', () => loadFeedback(true));
 async function adminAPI(path, payload) {
   const controller = new AbortController(), timer = setTimeout(() => controller.abort(), 95000);
   try {
@@ -20,7 +46,7 @@ function renderOrder(order) {
   el('product').textContent = order.title;
   el('amount').textContent = '¥' + (order.price / 100).toFixed(2);
   el('order-status').textContent = order.status === 'paid' ? '已收款开通' : '等待人工核实收款';
-  el('confirm').hidden = order.status === 'paid';
+  el('confirm').hidden = order.status === 'paid' || trialOpen();
 }
 function confirmationMessage(message, field) {
   el('status').textContent = message; el('confirm-status').textContent = message;
@@ -34,6 +60,7 @@ el('lookup').addEventListener('submit', async event => {
     renderOrder(data.order); el('received').value = ''; el('reference').value = ''; el('verified').checked = false;
     el('confirm-status').textContent = '';
     el('status').textContent = data.order.status === 'paid' ? '此订单已开通，请核对用户账号并让用户刷新权益。' : '请先到收款工具核实到账，再填金额、真实流水号并勾选确认。';
+    if (trialOpen() && data.order.status !== 'paid') el('status').textContent = '试用期间暂停收款开通，原待付款订单保留，请勿要求用户付款。';
   } catch (error) { el('status').textContent = error.message; }
   finally { button.disabled = false; }
 });
@@ -69,6 +96,8 @@ el('model-check').addEventListener('click', async () => {
 function setLoggedIn(username) {
   el('admin-login').hidden = Boolean(username); el('admin-workspace').hidden = !username;
   el('admin-name').textContent = username || '';
+  if (username) { loadFeedback(); adminAPI('session', {}).then(data => trialMessage(data.trial)).catch(() => {}); }
+  else { el('admin-feedback-list').replaceChildren(); el('feedback-list-status').textContent = ''; feedbackBefore = null; }
   if (!username) { currentOrder = null; el('order-panel').hidden = true; el('order-id').value = ''; el('username').textContent = ''; el('reference').value = ''; el('status').textContent = ''; }
 }
 el('admin-login').addEventListener('submit', async event => {
