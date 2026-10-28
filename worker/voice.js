@@ -3,7 +3,7 @@ class VoiceError extends Error {
   constructor(message, status = 400) { super(message); this.status = status; }
 }
 const fail = (message, status) => { throw new VoiceError(message, status); };
-const STYLE = '保留冰糖原有成年女性音色，用有活力、明亮、甜美又温柔的普通话自然说话，笑着真诚鼓励，声音有精神，有轻快节奏和自然音高起伏。保留一点软糯，正常略轻快的语速，短暂停顿。不低声耳语、不慵懒、不拖长、不模仿童声、不夸张尖叫、不用播音腔、不加背景音乐。只朗读指定原文。';
+const STYLE = "使用冰糖原有的成年女性音色，声音更轻盈、更软糯、更清甜，带一点少女感和俏皮感。像笑着鼓励亲近的人，语气温柔又有精神，音调略高一点，尾音轻轻上扬，咬字轻柔，节奏轻快自然。不要刻意夹嗓，不要模仿幼儿，不要奶声奶气过头，不要嗲到含糊，不耳语、不慵懒、不拖长，不用播音腔，不加背景音乐。只朗读指定原文。";
 async function limitedJSON(response) {
   if (!response.ok) { await response.body?.cancel(); fail('语音服务暂时繁忙，请稍后重试。文字解读已保留。', 502); }
   const reader = response.body.getReader(), chunks = []; let size = 0;
