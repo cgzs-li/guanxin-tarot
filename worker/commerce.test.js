@@ -642,3 +642,44 @@ test('owner preparation bypasses paid quotas but logout revokes access', async (
     assert.equal(calls.length, 0);
   });
 });
+
+test('spread recommendation requires a real account and AI rights, passes actual background, and never spends a reading', async () => {
+  const f = await fixture(), a = await register(f);
+  const payload = { question: '如何开始练习绘画？', theme: '自我', background: [{ question: '每天能用多久？', answer: '十分钟' }] };
+  await model(async calls => {
+    assert.equal((await f.request('paid/recommend-spread', payload)).status, 401);
+    assert.equal((await f.request('paid/recommend-spread', { ...payload, admin_test: true }, a.cookie)).status, 402);
+    assert.equal((await f.request('recommend-spread', payload, a.cookie)).status, 402);
+    assert.equal(calls.length, 0);
+  });
+  await buy(f, a.cookie);
+  const before = (await f.request('account/me', undefined, a.cookie)).body;
+  await model(async calls => {
+    const result = await f.request('paid/recommend-spread', payload, a.cookie);
+    assert.equal(result.status, 200); assert.equal(result.body.spread_id, 'triangle');
+    const context = JSON.parse(calls[0].messages[1].content);
+    assert.equal(context.问题, payload.question); assert.equal(context.背景[0].回答, '十分钟');
+    assert.equal(context.可选牌阵.length, 26);
+  }, 200, '{"spread_id":"triangle","reason":"用三张牌先梳理当下、阻碍和行动。"}');
+  assert.deepEqual((await f.request('account/me', undefined, a.cookie)).body, before);
+  for (const [status, content] of [[503, 'private upstream'], [200, '{"spread_id":"invented","reason":"不合法的牌阵"}']]) {
+    await model(async () => assert.equal((await f.request('paid/recommend-spread', payload, a.cookie)).status, 502), status, content);
+    assert.deepEqual((await f.request('account/me', undefined, a.cookie)).body, before);
+  }
+});
+
+test('spread recommendation supports zero-balance trial and owner, but rejects expired trial and logged-out owner', async () => {
+  const f = await fixture(), a = await register(f), payload = { question: '怎样开始？', theme: '自我', background: [] };
+  openTrial(f);
+  await model(async () => assert.equal((await f.request('paid/recommend-spread', payload, a.cookie)).status, 200), 200,
+    '{"spread_id":"single","reason":"先关注当下可以尝试的一步。"}');
+  f.gateway.env.GUANXIN_TRIAL_END = new Date(Date.now() - 1).toISOString();
+  await model(async calls => { assert.equal((await f.request('paid/recommend-spread', payload, a.cookie)).status, 402); assert.equal(calls.length, 0); });
+  const owner = { username: 'OwnerTest', password: 'fictional-owner-password-123' };
+  await f.request('admin/setup', owner, '', adminKey); const login = await f.request('account/login', owner);
+  await model(async () => assert.equal((await f.request('paid/recommend-spread', payload, login.cookie)).status, 200), 200,
+    '{"spread_id":"single","reason":"先关注当下。"}');
+  assert.equal(f.gateway.calls.length, 1); // Trial counts; the owner call bypasses this counter.
+  await f.request('account/logout', {}, login.cookie);
+  assert.equal((await f.request('paid/recommend-spread', payload, login.cookie)).status, 401);
+});

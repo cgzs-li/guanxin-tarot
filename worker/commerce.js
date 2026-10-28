@@ -18,7 +18,7 @@ export const products = [
 ];
 export const commercePaths = new Set([
   '/api/account/me', '/api/account/register', '/api/account/login', '/api/account/logout',
-  '/api/paid/voice', '/api/visit', '/api/admin/audience', '/api/admin/users', '/api/free/reading', '/api/feedback', '/api/admin/feedback', '/api/paid/polish', '/api/paid/intake-questions', ...paidPaths
+  '/api/paid/voice', '/api/visit', '/api/admin/audience', '/api/admin/users', '/api/free/reading', '/api/feedback', '/api/admin/feedback', '/api/paid/polish', '/api/paid/intake-questions', '/api/paid/recommend-spread', ...paidPaths
 ]);
 class CommerceError extends Error {
   constructor(message, status = 400) { super(message); this.status = status; }
@@ -244,8 +244,8 @@ export class Commerce {
       }
       if (path === '/api/free/reading') return await this.freeReading(account, payload);
       if (path === '/api/feedback') return reply(await this.feedback.submit(account, payload));
-      if (path === '/api/paid/polish' || path === '/api/paid/intake-questions')
-        return reply(await this.paid.prepare(account, payload, ip, path === '/api/paid/polish'));
+      if (path === '/api/paid/polish' || path === '/api/paid/intake-questions' || path === '/api/paid/recommend-spread')
+        return reply(await this.paid.prepare(account, payload, ip, path === '/api/paid/polish', path === '/api/paid/recommend-spread'));
       if (path === '/api/order') {
         if (trialWindow(this.gateway.env).active) throw new CommerceError('限时免费试用期间暂停充值下单，直接开始解读即可。', 403);
         return reply(await this.paid.order(account, payload));

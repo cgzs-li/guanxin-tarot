@@ -59,10 +59,10 @@ function switchReadingMode(mode) {
   document.querySelectorAll('[name="reading-mode"]').forEach(r => { r.checked = r.value === mode; });
   $('reading-mode-help').textContent = mode === 'free'
     ? '每个账号有 1 次完整本地解读。不会调用 AI，点击阅读并成功生成后才使用机会。'
-    : '套餐包含 AI 润色、动态三问与解读。点击润色或进入下一步会发送问题给模型；解读成功后使用 1 次对应权益。';
+    : '套餐包含 AI 润色、动态三问、牌阵推荐与解读。点击润色或进入下一步会发送问题给模型；解读成功后使用 1 次对应权益。';
   $('start').textContent = mode === 'free' ? '开始我的免费体验 ↗' : '开始 AI 解读 ↗';
   if (trialActive()) {
-    $('reading-mode-help').textContent = '限时试用：AI 润色、三问、解读与 3 轮追问免费；不扣原有次卡、月卡或免费机会。' + trialEndLabel() + '（北京时间）恢复原付费规则。';
+    $('reading-mode-help').textContent = '限时试用：AI 润色、三问、牌阵推荐、解读与 3 轮追问免费；不扣原有次卡、月卡或免费机会。' + trialEndLabel() + '（北京时间）恢复原付费规则。';
     $('start').textContent = mode === 'free' ? '开始本地解读 ↗' : '开始免费 AI 解读 ↗';
   }
   if (commerce.account?.admin_test) { $('reading-mode-help').textContent = '负责人测试：可重复抽牌、解读和追问，不充值、不扣次。模型服务本身的可用性仍适用。'; $('start').textContent = mode === 'free' ? '测试本地解读 ↗' : '测试 AI 解读 ↗'; }
@@ -73,14 +73,16 @@ function updatePreparationUI() {
   const enabled = preparationAIEnabled();
   $('polish-question').hidden = !enabled; $('polish-help').hidden = !enabled;
   $('intake-regenerate').hidden = !enabled || intakeStep === 3;
+  $('ai-spread-recommend').hidden = !enabled;
+  $('planning-note').textContent = enabled ? 'AI 会结合你的问题与补充背景推荐一套牌阵，并说明理由。查看牌位后可以采用，也可以手动更换；推荐不额外扣解读次数。' : '背景问题和牌阵建议使用本地规则；可按类别浏览全部 26 套牌阵。';
   $('polish-help').textContent = '将当前问题发送给 AI 润色，先预览再决定是否采用；不额外扣解读次数。';
   $('intake-help').textContent = enabled
     ? 'AI 会根据你的问题拟定三个背景问题，可逐项填写或跳过；生成三问不额外扣解读次数。'
     : '按问题与主题补充本地背景问题，可逐项填写或跳过；免费模式不调用 AI。';
   $('planning-privacy').textContent = enabled
-    ? '进入下一步会发送当前问题以生成 AI 三问；润色需主动点击。填写的背景与牌面会在解读时发送给模型。牌阵仍可自行选择。'
+    ? '进入下一步会发送当前问题以生成 AI 三问；润色需主动点击。背景完成或跳过后会发送给 AI 推荐牌阵，抽牌后再生成解读；也可手动选择牌阵。'
     : '背景提问与牌阵建议使用本地规则。免费解读不调用模型，成功生成完整解读后使用免费机会。';
-  if (!enabled) { resetPolish(); cancelPreparation('questions'); $('intake-ai-status').textContent = ''; }
+  if (!enabled) { resetPolish(); cancelPreparation('questions'); cancelPreparation('spread'); spreadAIKey = ''; $('intake-ai-status').textContent = ''; $('spread-ai-status').textContent = ''; }
 }
 function updateChargeNote() {
   $('reading-charge-note').textContent = commerce.mode === 'free'
