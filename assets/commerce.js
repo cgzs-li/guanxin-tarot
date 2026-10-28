@@ -103,6 +103,11 @@ function setAuthTab(tab) {
   $('auth-register-tab').setAttribute('aria-pressed', String(registration));
   $('confirm-password-field').hidden = !registration;
   $('account-confirm-password').required = registration;
+  $('phone-field').hidden = !registration;
+  $('account-phone').required = registration;
+  $('account-phone').disabled = !registration;
+  $('account-phone').setCustomValidity('');
+  if (!registration) $('account-phone').value = '';
   $('account-password').autocomplete = registration ? 'new-password' : 'current-password';
   $('auth-submit').textContent = registration ? '注册，领取免费机会' : '登录';
   $('auth-status').textContent = '';
@@ -319,14 +324,24 @@ $('member-refresh').addEventListener('click', async () => {
 });
 $('auth-login-tab').addEventListener('click', () => setAuthTab('login'));
 $('auth-register-tab').addEventListener('click', () => setAuthTab('register'));
+$('account-phone').addEventListener('input', () => $('account-phone').setCustomValidity(''));
 $('auth-form').addEventListener('submit', async event => {
-  event.preventDefault(); const button = $('auth-submit'); button.disabled = true;
+  event.preventDefault();
+  const registration = $('auth-form').dataset.tab === 'register';
+  if (registration) {
+    const mobile = $('account-phone').value.normalize('NFKC').trim().replace(/[\s-]/g, '').replace(/^\+86/, '');
+    if (!/^1[3-9]\d{9}$/.test(mobile)) {
+      $('account-phone').setCustomValidity('请填写 11 位中国大陆手机号。'); $('account-phone').reportValidity();
+      $('auth-status').textContent = '手机号格式不正确，请检查后重试。'; return;
+    }
+  }
+  const button = $('auth-submit'); button.disabled = true;
   $('auth-status').textContent = '正在验证，请稍等…';
   try {
-    const registration = $('auth-form').dataset.tab === 'register';
     const data = await commerceAPI(registration ? '/api/account/register' : '/api/account/login', {
-      username: $('account-username').value, password: $('account-password').value, confirm_password: $('account-confirm-password').value });
-    setAccount(data); $('account-password').value = ''; $('account-confirm-password').value = '';
+      username: $('account-username').value, password: $('account-password').value, confirm_password: $('account-confirm-password').value,
+      ...(registration ? { phone: $('account-phone').value } : {}) });
+    setAccount(data); $('account-password').value = ''; $('account-confirm-password').value = ''; $('account-phone').value = '';
     closeDialog($('account-dialog')); $('input-error').textContent = '';
     const next = commerce.afterAuth; commerce.afterAuth = null;
     if (next) next();

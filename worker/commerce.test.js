@@ -30,8 +30,9 @@ async function fixture(storage = new MemoryStorage()) {
   };
   return { storage, gateway, env, request };
 }
+let testPhoneSequence = 0;
 async function register(f, username = '测试账号') {
-  const a = await f.request('account/register', { username, password: 'fictional-password-123', confirm_password: 'fictional-password-123' });
+  const a = await f.request('account/register', { username, password: 'fictional-password-123', confirm_password: 'fictional-password-123', phone: '199' + String(++testPhoneSequence).padStart(8, '0') });
   assert.equal(a.status, 200, a.body.error); return a;
 }
 function reading(spreadId = 'basic', requestId = crypto.randomUUID()) {
@@ -58,6 +59,55 @@ function openTrial(f, ends = Date.now() + 86400000) {
   const vars = { GUANXIN_TRIAL_START: new Date(Date.now() - 1000).toISOString(), GUANXIN_TRIAL_END: new Date(ends).toISOString() };
   Object.assign(f.env, vars); Object.assign(f.gateway.env, vars); return ends;
 }
+
+test('new registration requires a mainland-format phone and cannot bypass validation through the API', async () => {
+  const payload = { username: '新手机号账号', password: 'fictional-password-123', confirm_password: 'fictional-password-123' };
+  for (const phone of [undefined, '', 19900000201, '12345678901', '1990000020', '199000002011', '+12125550123', '19900000abc', '<script>', '1'.repeat(33)]) {
+    const f = await fixture();
+    const result = await f.request('account/register', { ...payload, phone });
+    assert.equal(result.status, 400); assert.match(result.body.error, /手机号/);
+    assert.equal(await f.storage.get('user:新手机号账号'), undefined);
+    assert.equal((await f.storage.list({ prefix: 'account:phone:' })).size, 0);
+  }
+});
+
+test('normalized phone registration is unique across accounts and restarts without storing plaintext', async () => {
+  const f = await fixture(), payload = { username: '手机号首个账号', password: 'fictional-password-123', confirm_password: 'fictional-password-123' };
+  const result = await f.request('account/register', { ...payload, phone: ' +86 199-0000-0201 ' });
+  assert.equal(result.status, 200); assert.equal(result.body.free_remaining, 1);
+  const user = await f.storage.get('user:手机号首个账号'); assert.equal(user.phoneVerified, false); assert.equal(user.phoneMasked, '199****0201');
+  assert.equal(JSON.stringify([...f.storage.values]).includes('19900000201'), false);
+  const restarted = await fixture(f.storage);
+  for (const phone of ['19900000201', '１９９０００００２０１', '+86 199 0000 0201']) {
+    const duplicate = await restarted.request('account/register', { ...payload, username: '手机号第二账号', phone });
+    assert.equal(duplicate.status, 409); assert.match(duplicate.body.error, /手机号已用于注册/);
+    assert.equal(await f.storage.get('user:手机号第二账号'), undefined);
+  }
+  const login = await restarted.request('account/login', { username: payload.username, password: payload.password });
+  assert.equal(login.status, 200); assert.equal(login.body.user.id, result.body.user.id);
+  assert.equal((await restarted.request('admin/users', {}, '', adminKey)).body.total, 1);
+});
+
+test('simultaneous registrations reserve a phone once and failed account validation does not occupy it', async () => {
+  const f = await fixture(), password = 'fictional-password-123', phone = '19900000202';
+  const request = username => f.request('account/register', { username, password, confirm_password: password, phone });
+  const results = await Promise.all([request('并发注册甲'), request('并发注册乙')]);
+  assert.deepEqual(results.map(r => r.status).sort(), [200, 409]);
+  assert.equal((await f.storage.list({ prefix: 'account:phone:' })).size, 1);
+  const winner = results.find(r => r.status === 200).body.user.name;
+  assert.equal((await f.request('account/register', { username: winner, password, confirm_password: password, phone: '19900000203' })).status, 409);
+  assert.equal((await f.request('account/register', { username: '重试成功账号', password, confirm_password: password, phone: '19900000203' })).status, 200);
+  assert.equal((await f.request('admin/users', {}, '', adminKey)).body.total, 2);
+});
+
+test('legacy accounts continue logging in without phone binding and retain paid and free rights', async () => {
+  const f = await fixture(), first = await register(f); await buy(f, first.cookie); await f.request('free/reading', reading(), first.cookie);
+  const key = 'user:测试账号', user = await f.storage.get(key); delete user.phoneMasked; delete user.phoneVerified; await f.storage.put(key, user);
+  const before = (await f.request('account/me', undefined, first.cookie)).body;
+  const result = await f.request('account/login', { username: '测试账号', password: 'fictional-password-123' });
+  assert.equal(result.status, 200); assert.equal(result.body.free_remaining, 0); assert.deepEqual(result.body.paid, before.paid);
+  const after = await f.storage.get(key); assert.equal(after.phoneMasked, undefined); assert.equal(after.phoneVerified, undefined);
+});
 
 test('visitor statistics deduplicate browser and page retries, link real sessions and remain admin-only', async () => {
   const f = await fixture(), firstPage = crypto.randomUUID(), nextPage = crypto.randomUUID();

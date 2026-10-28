@@ -43,6 +43,12 @@ function password(value) {
   if (typeof value !== 'string' || value.length < 8 || value.length > 72) throw new CommerceError('密码请使用 8～72 个字符。');
   return value;
 }
+function phone(value) {
+  if (typeof value !== 'string' || value.length > 32) throw new CommerceError('请填写 11 位中国大陆手机号。');
+  const result = value.normalize('NFKC').trim().replace(/[\s-]/g, '').replace(/^\+86/, '');
+  if (!/^1[3-9]\d{9}$/.test(result)) throw new CommerceError('手机号格式不正确，请填写 11 位中国大陆手机号。');
+  return result;
+}
 async function passwordHash(value, salt) {
   const key = await crypto.subtle.importKey('raw', enc.encode(value), 'PBKDF2', false, ['deriveBits']);
   return hex(await crypto.subtle.deriveBits({ name: 'PBKDF2', salt: enc.encode(salt), iterations: 100000, hash: 'SHA-256' }, key, 256));
@@ -129,13 +135,20 @@ export class Commerce {
     const owner = await this.storage.get('admin:account');
     if (owner && name(owner.username) === username) throw new CommerceError('这是负责人账号，请直接使用登录。', 409);
     if (payload.confirm_password !== pass) throw new CommerceError('两次输入的密码不一致。');
+    const mobile = phone(payload.phone);
     const salt = hex(crypto.getRandomValues(new Uint8Array(16)));
     const hash = await passwordHash(pass, salt);
     const key = 'user:' + username;
     await this.storage.transaction(async tx => {
       if (await tx.get(key)) throw new CommerceError('这个账号已被使用，请换一个或直接登录。', 409);
+      let phoneSalt = await tx.get('account:phone-salt');
+      if (!phoneSalt) { phoneSalt = hex(crypto.getRandomValues(new Uint8Array(32))); await tx.put('account:phone-salt', phoneSalt); }
+      const phoneKey = 'account:phone:' + await digest(phoneSalt + ':' + mobile);
+      if (await tx.get(phoneKey)) throw new CommerceError('此手机号已用于注册，请使用原账号登录。手机号未通过短信验证，若被他人占用请联系负责人。', 409);
       await tx.put(key, { id: crypto.randomUUID(), name: username, salt, hash, created: Date.now(),
+        phoneMasked: mobile.slice(0, 3) + '****' + mobile.slice(-4), phoneVerified: false,
         freeReceipt: null, paidBalance: { single: 0, triple: 0, complex: 0 }, paidMemberUntil: 0, paidOrders: [] });
+      await tx.put(phoneKey, key);
       const total = await tx.get('audience:user-total');
       if (total !== undefined) await tx.put('audience:user-total', total + 1);
     });

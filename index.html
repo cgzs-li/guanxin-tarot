@@ -35,7 +35,7 @@ details.reading{display:block;scroll-margin-top:24px}details.reading>summary{cur
 .question-tools{display:flex;align-items:center;gap:16px;margin:4px 0 8px}.question-tools .example-btn{flex:1;min-width:0;padding:4px 0;line-height:1.7}.polish-btn{flex-shrink:0;min-height:44px;padding:8px 16px;border:1px solid var(--line);border-radius:4px;background:transparent;color:var(--gold);font-size:13px}.polish-btn:hover{border-color:var(--gold);background:#d4b78210}.polish-help{margin:0 0 12px}.polish-status{font-size:13px;color:var(--muted);margin:8px 0 12px;overflow-wrap:anywhere}.polish-status:empty{display:none}.polish-status[data-error=true]{color:#ffb3ad}.polish-preview{border:1px solid var(--line);padding:16px;margin:12px 0 20px;background:var(--surface);border-radius:6px}.polish-preview h3{font:18px/1.5 var(--serif);color:var(--gold);margin:0 0 10px}.polish-preview p{white-space:pre-wrap;overflow-wrap:anywhere;margin-bottom:12px;font-size:15px}.polish-actions{display:flex;align-items:center;gap:16px}.themes{flex-wrap:wrap}.theme{flex:1;min-width:60px}
 @media(max-width:600px){.question-tools{gap:12px}.polish-btn{padding-inline:12px}.polish-help{font-size:11px;line-height:1.8}}
 </style>
-<link rel="stylesheet" href="/assets/commerce.css?v=20261028-audience">
+<link rel="stylesheet" href="/assets/commerce.css?v=20261028-phone">
 </head>
 <body><div id="experience-app">
 <header><div class="brand"><svg viewBox="0 0 32 40" fill="none" stroke="currentColor" aria-hidden="true"><path d="M16 1v38M1 20h30M16 5 27 20 16 35 5 20Z"/><circle cx="16" cy="20" r="5"/></svg><div>观心<small>GUAN XIN · TAROT</small></div></div><div class="header-tools"><div class="header-note">留一点时间，听见自己。</div><button class="nav-library" id="plans-open" type="button">套餐与会员</button><button class="nav-library" id="account-open" type="button">登录 / 注册</button><a class="nav-library" id="admin-open" href="/assets/admin.html" hidden>管理后台 ↗</a><button class="nav-library" id="nav-library">牌义图书馆 ↗</button></div></header><div class="commerce-banner"><p id="trial-banner-copy">正在检查试用开放时间…</p><button class="text-btn" id="plans-inline" type="button">了解套餐 ↗</button></div>
@@ -68,6 +68,7 @@ details.reading{display:block;scroll-margin-top:24px}details.reading>summary{cur
 <label class="input-label" for="account-username">账号</label><input class="question-input" id="account-username" name="username" autocomplete="username" minlength="3" maxlength="24" required placeholder="3～24 位中文、字母或数字" aria-describedby="account-help">
 <label class="input-label" for="account-password">密码</label><input class="question-input" id="account-password" type="password" name="password" autocomplete="current-password" minlength="8" maxlength="72" required placeholder="8～72 个字符">
 <div id="confirm-password-field" hidden><label class="input-label" for="account-confirm-password">确认密码</label><input class="question-input" id="account-confirm-password" type="password" autocomplete="new-password" minlength="8" maxlength="72" placeholder="再次输入密码"></div>
+<div id="phone-field" hidden><label class="input-label" for="account-phone">手机号（每个号码限注册一次）</label><input class="question-input" id="account-phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" maxlength="32" disabled placeholder="11 位中国大陆手机号" aria-describedby="phone-help"><p class="report-note" id="phone-help">仅新注册必填，旧账号照常登录。不发送短信；仅检查格式并防止同号重复注册，不验证号码是否开通或属于本人。仅保存去重摘要与脱敏号码，请填写本人号码。</p></div>
 <p class="report-note" id="account-help">请妥善保存账号与密码；当前暂不支持短信找回。每个账号有 1 次免费本地解读，注册不会开通任何扣费。</p>
 <p id="auth-status" class="input-error" role="status" aria-live="polite"></p><button id="auth-submit" class="primary" type="submit">登录</button>
 </form></div>
@@ -496,4 +497,4 @@ if(STATIC_PREVIEW){
 }
 
 </script>
-</div><script src="/assets/commerce.js?v=20261028-audience"></script></body></html>
+</div><script src="/assets/commerce.js?v=20261028-phone"></script></body></html>
