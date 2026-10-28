@@ -160,7 +160,7 @@ export class PaidService {
       await this.storage.transaction(async tx => {
         const current = await tx.get(key);
         if (current?.lock !== lock || current.status !== 'pending') throw new PaidError('生成状态已变化，请刷新查看权益。', 409);
-        await tx.put('paid-conversation:' + reservation.sessionId, { userId: account.user.id, adminTest: account.isAdmin === true, token: result.session_id,
+        await tx.put('paid-conversation:' + reservation.sessionId, { userId: account.user.id, adminTest: account.isAdmin === true, token: result.session_id, readingToken: result.session_id,
           used: 0, limit: reservation.limit, trialEndsAt: reservation.trialEndsAt, expires });
         await tx.put(key, { ...current, status: 'done', result: encrypted, expires });
         const user = await tx.get(account.key); if (user.paidPending === key) user.paidPending = null; await tx.put(account.key, user);

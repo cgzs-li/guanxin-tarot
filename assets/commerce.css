@@ -24,3 +24,10 @@
 @media(max-width:700px){header{flex-wrap:wrap;gap:14px}.header-tools{flex:1;justify-content:flex-end;gap:14px;flex-wrap:wrap}.commerce-banner{align-items:flex-start;padding-inline:6%;gap:8px}.commerce-banner .text-btn{font-size:13px}.commerce-banner p{margin:0}.plan-options{grid-template-columns:1fr;gap:12px}#plans-dialog{padding:24px}#plans-title{font-size:26px}.checkout-actions{align-items:stretch;flex-direction:column;gap:12px}.dialog-heading .text-btn{width:auto}.reading-mode-options{gap:8px 16px}.product-option{min-height:56px}}
 @media(max-width:380px){.header-tools{flex-basis:100%;justify-content:space-between;gap:8px}.commerce-banner{flex-wrap:wrap}.commerce-banner .text-btn{padding-left:0}}
 
+
+.reading-voice{margin-block:28px;padding-block:24px;border-block:1px solid var(--line)}
+.reading-voice h4{font:24px/1.5 var(--serif);margin:0 0 10px;text-wrap:balance}
+.reading-voice .report-note{max-width:65ch}.reading-voice .text-btn{min-height:44px;color:var(--gold)}
+.reading-voice audio{width:100%;max-width:560px;margin-top:12px;color-scheme:dark}
+.reading-voice button:focus-visible,.reading-voice audio:focus-visible{outline:2px solid var(--gold);outline-offset:4px}
+.reading-voice button:disabled{opacity:.6;cursor:wait}

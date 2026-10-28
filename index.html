@@ -35,7 +35,7 @@ details.reading{display:block;scroll-margin-top:24px}details.reading>summary{cur
 .question-tools{display:flex;align-items:center;gap:16px;margin:4px 0 8px}.question-tools .example-btn{flex:1;min-width:0;padding:4px 0;line-height:1.7}.polish-btn{flex-shrink:0;min-height:44px;padding:8px 16px;border:1px solid var(--line);border-radius:4px;background:transparent;color:var(--gold);font-size:13px}.polish-btn:hover{border-color:var(--gold);background:#d4b78210}.polish-help{margin:0 0 12px}.polish-status{font-size:13px;color:var(--muted);margin:8px 0 12px;overflow-wrap:anywhere}.polish-status:empty{display:none}.polish-status[data-error=true]{color:#ffb3ad}.polish-preview{border:1px solid var(--line);padding:16px;margin:12px 0 20px;background:var(--surface);border-radius:6px}.polish-preview h3{font:18px/1.5 var(--serif);color:var(--gold);margin:0 0 10px}.polish-preview p{white-space:pre-wrap;overflow-wrap:anywhere;margin-bottom:12px;font-size:15px}.polish-actions{display:flex;align-items:center;gap:16px}.themes{flex-wrap:wrap}.theme{flex:1;min-width:60px}
 @media(max-width:600px){.question-tools{gap:12px}.polish-btn{padding-inline:12px}.polish-help{font-size:11px;line-height:1.8}}
 </style>
-<link rel="stylesheet" href="/assets/commerce.css?v=20261028-phone">
+<link rel="stylesheet" href="/assets/commerce.css?v=20261028-voice">
 </head>
 <body><div id="experience-app">
 <header><div class="brand"><svg viewBox="0 0 32 40" fill="none" stroke="currentColor" aria-hidden="true"><path d="M16 1v38M1 20h30M16 5 27 20 16 35 5 20Z"/><circle cx="16" cy="20" r="5"/></svg><div>观心<small>GUAN XIN · TAROT</small></div></div><div class="header-tools"><div class="header-note">留一点时间，听见自己。</div><button class="nav-library" id="plans-open" type="button">套餐与会员</button><button class="nav-library" id="account-open" type="button">登录 / 注册</button><a class="nav-library" id="admin-open" href="/assets/admin.html" hidden>管理后台 ↗</a><button class="nav-library" id="nav-library">牌义图书馆 ↗</button></div></header><div class="commerce-banner"><p id="trial-banner-copy">正在检查试用开放时间…</p><button class="text-btn" id="plans-inline" type="button">了解套餐 ↗</button></div>
@@ -54,6 +54,13 @@ details.reading{display:block;scroll-margin-top:24px}details.reading>summary{cur
 <div class="ai-top-actions"><button class="primary" id="ai-generate" disabled>检查 AI 连接…</button><a href="#results">先看本地牌义 ↓</a></div>
 <p class="ai-status" id="ai-status" role="status" aria-live="polite"></p>
 <div class="ai-conversation" id="ai-conversation" aria-label="本次 AI 解读与追问"></div>
+<section class="reading-voice" id="reading-voice" aria-labelledby="voice-title" hidden>
+<h4 id="voice-title">听一听，这次解读的重点</h4>
+<p class="report-note">冰糖 · 温柔活力 · 约 30～60 秒。点击后将本次解读重点发送至语音模型，不额外扣解读次数。</p>
+<button class="text-btn" id="voice-generate" type="button">生成语音解读</button>
+<p id="voice-status" class="report-note" role="status" aria-live="polite"></p>
+<audio id="reading-audio" controls preload="metadata" aria-label="本次解读重点语音" hidden></audio>
+</section>
 <form id="ai-followup-form" hidden><label class="input-label" for="ai-followup">继续问这一次抽牌</label><textarea class="question-input" id="ai-followup" maxlength="600" rows="3" placeholder="例如：结合建议位，我可以先尝试怎样沟通？" aria-describedby="ai-followup-help" required></textarea><p class="report-note" id="ai-followup-help">沿用本次牌阵与对话，不会重新抽牌。最多 600 字。</p><button class="primary" id="ai-send" type="submit">发送追问</button></form>
 </section><p id="reading-result-label" role="status"></p><div class="results" id="results" tabindex="-1" hidden></div><section class="reading-feedback results" id="reading-feedback" aria-labelledby="feedback-title" hidden><h2 id="feedback-title">这次体验，你觉得怎么样？</h2><p>留一点感受，帮我们把解读做得更好。反馈仅供负责人在后台查看。 网站使用匿名浏览器标识统计访问，登录后的访问会关联账号，仅负责人可查看。</p><form id="feedback-form"><label class="input-label" for="feedback-rating">体验评分</label><select id="feedback-rating" required><option value="">请选择评分</option><option value="5">5 分 · 很有帮助</option><option value="4">4 分 · 有些启发</option><option value="3">3 分 · 一般</option><option value="2">2 分 · 帮助不大</option><option value="1">1 分 · 体验不好</option></select><label class="input-label" for="feedback-message">想补充的意见（选填）</label><textarea class="question-input" id="feedback-message" maxlength="1000" rows="4" placeholder="例如：哪部分有启发，哪里不清楚，或遇到了什么问题？" aria-describedby="feedback-help"></textarea><p class="report-note" id="feedback-help">最多 1000 字。不必重复问题或解读原文，请勿填写手机号、付款信息等隐私。提交后会记录账号、评分、意见和对应牌阵。</p><p id="feedback-status" role="status" aria-live="polite"></p><button class="primary" id="feedback-submit" type="submit">提交反馈</button></form></section><div class="end-actions"><button class="text-btn" id="reset">返回选择主题</button></div></section>
 <div class="bottom-strip"><span>每一次探索，都是一次与自己的对话。</span><span>按问题选择 · 按牌位解读</span><span>以牌为镜，以你为答案</span></div>
@@ -497,4 +504,4 @@ if(STATIC_PREVIEW){
 }
 
 </script>
-</div><script src="/assets/commerce.js?v=20261028-phone"></script></body></html>
+</div><script src="/assets/commerce.js?v=20261028-voice"></script></body></html>

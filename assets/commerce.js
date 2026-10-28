@@ -243,6 +243,49 @@ async function readCommercial() {
     commerce.busy = false; $('read').disabled = false; $('reset').disabled = false;
   }
 }
+let voiceController = null, voiceURL = '';
+function resetVoice() {
+  voiceController?.abort(); voiceController = null;
+  const audio = $('reading-audio'); audio.pause(); audio.removeAttribute('src'); audio.load(); audio.hidden = true;
+  if (voiceURL) URL.revokeObjectURL(voiceURL); voiceURL = '';
+  $('reading-voice').hidden = true; $('voice-generate').disabled = false; $('voice-generate').hidden = false;
+  $('voice-generate').textContent = '生成语音解读'; $('voice-status').textContent = '';
+}
+const resetTextAI = resetAI;
+resetAI = function () { resetVoice(); resetTextAI(); };
+$('voice-generate').addEventListener('click', async () => {
+  if (!commerce.paidData?.session_id || voiceController) return;
+  const session = commerce.paidData.session_id, flow = commerce.flow, controller = new AbortController();
+  voiceController = controller; $('voice-generate').disabled = true;
+  $('voice-status').textContent = '正在整理重点并生成语音，通常需要几十秒；你可以先阅读文字。';
+  const timer = setTimeout(() => controller.abort(), 175000);
+  try {
+    const response = await fetch('/api/paid/voice', { method: 'POST', credentials: 'same-origin', cache: 'no-store',
+      headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ session_id: session }), signal: controller.signal });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({})); throw new Error(data.error || '语音暂时无法生成，请稍后重试。');
+    }
+    if (!response.headers.get('Content-Type')?.startsWith('audio/wav')) throw new Error('语音格式异常，请重试。');
+    const blob = await response.blob();
+    if (flow !== commerce.flow || session !== commerce.paidData?.session_id || controller.signal.aborted) return;
+    if (voiceURL) URL.revokeObjectURL(voiceURL);
+    voiceURL = URL.createObjectURL(blob); const audio = $('reading-audio'); audio.src = voiceURL; audio.hidden = false;
+    $('voice-generate').hidden = true; $('voice-status').textContent = '语音已准备好，点击播放。你可以暂停或拖动进度。';
+  } catch (error) {
+    if (flow === commerce.flow && session === commerce.paidData?.session_id) {
+      $('voice-status').textContent = error.name === 'AbortError' ? '生成超时，请重试。文字解读已保留。' : error.message;
+      $('voice-generate').textContent = '重试生成语音';
+    }
+  } finally {
+    clearTimeout(timer);
+    if (voiceController === controller) { voiceController = null; $('voice-generate').disabled = false; }
+  }
+});
+$('reading-audio').addEventListener('error', () => {
+  if (!voiceURL) return;
+  $('voice-status').textContent = '播放失败，请重试生成语音。文字解读已保留。';
+  $('voice-generate').hidden = false; $('voice-generate').textContent = '重试生成语音';
+});
 function commercePrepareAI() {
   resetAI(); $('ai-panel').hidden = false;
   $('ai-consent').textContent = 'AI 解读会将本次问题、背景、牌面及有限对话发送给模型服务。回答仅作参考，请结合现实判断。';
@@ -252,6 +295,7 @@ function commercePrepareAI() {
   $('ai-panel').querySelector('.ai-intro').textContent = commerce.paidData ? '以下为大模型针对本次问题和固定牌面的回答。' : '本地免费解读已完成。AI 解读和追问需先充值，可沿用当前这组牌。';
   if (!commerce.paidData && trialActive()) { $('ai-generate').textContent = '免费生成 AI 解读'; $('ai-panel').querySelector('.ai-intro').textContent = '试用期可免费使用 AI，沿用当前这组牌，不消耗原有次数。'; }
   if (commerce.paidData) {
+    $('reading-voice').hidden = false;
     aiSession = commerce.paidData.session_id;
     aiMessage('assistant', commerce.paidData.answer);
     $('ai-followup-form').hidden = commerce.paidData.followup_remaining <= 0;
@@ -298,7 +342,7 @@ $('begin-draw').addEventListener('click', () => {
   $('session-error').textContent = ''; $('reading-result-label').textContent = ''; updateChargeNote();
   $('reading-feedback').hidden = true; delete $('feedback-form').dataset.readingId;
 });
-$('reset').addEventListener('click', () => { commerce.flow++; commerce.paidData = null; $('reading-feedback').hidden = true; delete $('feedback-form').dataset.readingId; });
+$('reset').addEventListener('click', () => { resetVoice(); commerce.flow++; commerce.paidData = null; $('reading-feedback').hidden = true; delete $('feedback-form').dataset.readingId; });
 $('feedback-form').addEventListener('submit', async event => {
   event.preventDefault(); const readingId = $('feedback-form').dataset.readingId, flow = commerce.flow;
   if (!readingId) return;

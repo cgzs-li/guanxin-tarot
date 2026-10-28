@@ -3,6 +3,7 @@ import { PaidService, paidPaths, paidSummary } from './paid.js';
 import { trialWindow } from './trial.js';
 import { Feedback } from './feedback.js';
 import { Audience } from './audience.js';
+import { VoiceService } from './voice.js';
 const enc = new TextEncoder();
 const DAY = 86400000;
 const SESSION_COOKIE = '__Host-guanxin_session';
@@ -17,7 +18,7 @@ export const products = [
 ];
 export const commercePaths = new Set([
   '/api/account/me', '/api/account/register', '/api/account/login', '/api/account/logout',
-  '/api/visit', '/api/admin/audience', '/api/admin/users', '/api/free/reading', '/api/feedback', '/api/admin/feedback', '/api/paid/polish', '/api/paid/intake-questions', ...paidPaths
+  '/api/paid/voice', '/api/visit', '/api/admin/audience', '/api/admin/users', '/api/free/reading', '/api/feedback', '/api/admin/feedback', '/api/paid/polish', '/api/paid/intake-questions', ...paidPaths
 ]);
 class CommerceError extends Error {
   constructor(message, status = 400) { super(message); this.status = status; }
@@ -66,7 +67,7 @@ function allowance(user) {
     paid: paidSummary(user) };
 }
 export class Commerce {
-  constructor(state, validate, gateway) { this.storage = state.storage; this.validate = validate; this.gateway = gateway; this.paid = new PaidService(state, gateway, products); this.feedback = new Feedback(state.storage); this.audience = new Audience(state.storage); }
+  constructor(state, validate, gateway) { this.storage = state.storage; this.validate = validate; this.gateway = gateway; this.paid = new PaidService(state, gateway, products); this.feedback = new Feedback(state.storage); this.audience = new Audience(state.storage); this.voice = new VoiceService(this); }
   accountData(user) { return { ...allowance(user), trial: trialWindow(this.gateway.env) }; }
   async rate(request, kind, limit, windowMs) {
     const key = 'rate:' + kind + ':' + (await digest(request.headers.get('X-Visitor-IP') || 'unknown')).slice(0, 32);
@@ -259,6 +260,7 @@ export class Commerce {
         await this.feedback.grant(account, payload, result.trial ? 'trial-ai' : account.isAdmin ? 'owner-ai' : 'paid-ai');
         return reply(result);
       }
+      if (path === '/api/paid/voice') return await this.voice.generate(account, payload, ip);
       if (path === '/api/paid/followup') return reply(await this.paid.followup(account, payload, ip));
       return reply({ error: '接口不存在。' }, 404);
     } catch (error) {
