@@ -35,10 +35,11 @@ details.reading{display:block;scroll-margin-top:24px}details.reading>summary{cur
 .question-tools{display:flex;align-items:center;gap:16px;margin:4px 0 8px}.question-tools .example-btn{flex:1;min-width:0;padding:4px 0;line-height:1.7}.polish-btn{flex-shrink:0;min-height:44px;padding:8px 16px;border:1px solid var(--line);border-radius:4px;background:transparent;color:var(--gold);font-size:13px}.polish-btn:hover{border-color:var(--gold);background:#d4b78210}.polish-help{margin:0 0 12px}.polish-status{font-size:13px;color:var(--muted);margin:8px 0 12px;overflow-wrap:anywhere}.polish-status:empty{display:none}.polish-status[data-error=true]{color:#ffb3ad}.polish-preview{border:1px solid var(--line);padding:16px;margin:12px 0 20px;background:var(--surface);border-radius:6px}.polish-preview h3{font:18px/1.5 var(--serif);color:var(--gold);margin:0 0 10px}.polish-preview p{white-space:pre-wrap;overflow-wrap:anywhere;margin-bottom:12px;font-size:15px}.polish-actions{display:flex;align-items:center;gap:16px}.themes{flex-wrap:wrap}.theme{flex:1;min-width:60px}
 @media(max-width:600px){.question-tools{gap:12px}.polish-btn{padding-inline:12px}.polish-help{font-size:11px;line-height:1.8}}
 </style>
-<link rel="stylesheet" href="/assets/commerce.css?v=20261028-spread-ai">
+<link rel="stylesheet" href="/assets/commerce.css?v=20261030-invite">
 </head>
 <body><div id="experience-app">
 <header><div class="brand"><svg viewBox="0 0 32 40" fill="none" stroke="currentColor" aria-hidden="true"><path d="M16 1v38M1 20h30M16 5 27 20 16 35 5 20Z"/><circle cx="16" cy="20" r="5"/></svg><div>观心<small>GUAN XIN · TAROT</small></div></div><div class="header-tools"><div class="header-note">留一点时间，听见自己。</div><button class="nav-library" id="plans-open" type="button">套餐与会员</button><button class="nav-library" id="account-open" type="button">登录 / 注册</button><a class="nav-library" id="admin-open" href="/assets/admin.html" hidden>管理后台 ↗</a><button class="nav-library" id="nav-library">牌义图书馆 ↗</button></div></header><div class="commerce-banner"><p id="trial-banner-copy">正在检查试用开放时间…</p><button class="text-btn" id="plans-inline" type="button">了解套餐 ↗</button></div>
+<section class="invite-announcement" id="invite-announcement" aria-label="内邀活动公告"><div><strong>内邀体验计划</strong><p>分享你的专属邀请码。每有一位新朋友使用它注册成功，你就获得 1 次 AI 解读机会，可用于任意牌阵。邀请码选填，普通注册照常开放。</p></div><button class="text-btn" id="invite-announcement-open" type="button">查看我的邀请码 ↗</button><button class="text-btn invite-dismiss" id="invite-announcement-close" type="button" aria-label="关闭内邀活动公告">关闭</button></section>
 <main><ol class="journey" aria-label="探索进度"><li aria-current="step"><b>01</b> 写下问题</li><li><b>02</b> 梳理背景</li><li><b>03</b> 抽取卡牌</li><li><b>04</b> 阅读启发</li></ol>
 <section class="intro" id="home">
  <div class="intro-copy"><p class="eyebrow">A MOMENT FOR YOURSELF</p><h1>静下心，<br>让答案<em>慢慢浮现。</em></h1><p class="lede">让心里的问题，慢慢清晰。<br>从一张牌的意象出发，探索当下，也找到下一步。</p>
@@ -76,12 +77,14 @@ details.reading{display:block;scroll-margin-top:24px}details.reading>summary{cur
 <label class="input-label" for="account-password">密码</label><input class="question-input" id="account-password" type="password" name="password" autocomplete="current-password" minlength="8" maxlength="72" required placeholder="8～72 个字符">
 <div id="confirm-password-field" hidden><label class="input-label" for="account-confirm-password">确认密码</label><input class="question-input" id="account-confirm-password" type="password" autocomplete="new-password" minlength="8" maxlength="72" placeholder="再次输入密码"></div>
 <div id="phone-field" hidden><label class="input-label" for="account-phone">手机号（每个号码限注册一次）</label><input class="question-input" id="account-phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" maxlength="32" disabled placeholder="11 位中国大陆手机号" aria-describedby="phone-help"><p class="report-note" id="phone-help">仅新注册必填，旧账号照常登录。不发送短信；仅检查格式并防止同号重复注册，不验证号码是否开通或属于本人。仅保存去重摘要与脱敏号码，请填写本人号码。</p></div>
+<div id="invite-field" hidden><label class="input-label" for="account-invite">好友邀请码（选填）</label><input class="question-input" id="account-invite" name="invite_code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" disabled placeholder="6 位数字"><p class="report-note">填写好友的邀请码并注册成功，好友可获得 1 次 AI 解读机会。每个新账号只能使用一次邀请码。</p></div>
 <p class="report-note" id="account-help">请妥善保存账号与密码；当前暂不支持短信找回。每个账号有 1 次免费本地解读，注册不会开通任何扣费。</p>
 <p id="auth-status" class="input-error" role="status" aria-live="polite"></p><button id="auth-submit" class="primary" type="submit">登录</button>
 </form></div>
 <div id="member-view" hidden>
 <p>你好，<strong id="member-name"></strong>。</p>
-<dl class="member-details"><dt>免费本地解读</dt><dd id="member-free"></dd><dt>付费次卡</dt><dd id="member-balances"></dd><dt>月卡</dt><dd id="member-monthly"></dd></dl>
+<dl class="member-details"><dt>免费本地解读</dt><dd id="member-free"></dd><dt>内邀 AI 解读</dt><dd id="member-invite-balance"></dd><dt>付费次卡</dt><dd id="member-balances"></dd><dt>月卡</dt><dd id="member-monthly"></dd></dl>
+<div class="member-invite"><h3>我的专属邀请码</h3><p class="invite-code" id="member-invite-code"></p><p class="report-note" id="member-invite-total"></p><button class="text-btn" id="member-invite-copy" type="button">复制邀请链接 ↗</button><p id="member-invite-status" role="status" aria-live="polite"></p></div>
 <p class="demo-note">次数由后台记录；模型失败不扣次。月卡不自动续费。</p>
 <button class="primary" id="member-plans" type="button">查看套餐与会员</button>
 <h3>我的订单</h3><p class="report-note">显示最近 20 笔订单。付款后请刷新查看，未开通时不要重复付款。</p><button class="text-btn" id="member-refresh" type="button">刷新权益与订单</button><ul class="order-list" id="member-orders"></ul>
@@ -93,7 +96,7 @@ details.reading{display:block;scroll-margin-top:24px}details.reading>summary{cur
 <p class="demo-note" id="plans-trial-note" hidden>目前是限时免费试用期，充值和收款码已暂停。无需付款，关闭此窗口后直接开始解读；原有订单与权益保留。</p><div id="plans-selection">
 <p>每个账号先享有 1 次免费本地解读，不含 AI。次卡不失效；月卡按北京时间刷新每日额度，到期不自动续费。</p>
 <div id="product-options" class="plan-options"><p>正在加载套餐…</p></div>
-<p class="report-note">1 次对应 1 次完整解读；4～10 张属于复杂牌阵。追问沿用同一次抽牌。月卡优先使用当日额度，用完后才使用对应次卡；技术失败不扣次数。</p>
+<p class="report-note">1 次对应 1 次完整解读；4～10 张属于复杂牌阵。追问沿用同一次抽牌。依次使用月卡当日额度、内邀 AI 机会、对应付费次卡；技术失败不扣次数。</p>
 <p id="plans-status" class="input-error" role="status" aria-live="polite"></p><button class="primary" id="create-order" type="button" disabled>创建充值订单</button>
 </div>
 <section id="checkout-panel" hidden aria-labelledby="checkout-title">
@@ -507,4 +510,4 @@ if(STATIC_PREVIEW){
 }
 
 </script>
-</div><script src="/assets/commerce.js?v=20261028-spread-ai"></script></body></html>
+</div><script src="/assets/commerce.js?v=20261030-invite"></script></body></html>

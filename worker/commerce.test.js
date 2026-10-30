@@ -60,6 +60,77 @@ function openTrial(f, ends = Date.now() + 86400000) {
   Object.assign(f.env, vars); Object.assign(f.gateway.env, vars); return ends;
 }
 
+async function invitedRegistration(f, username, code, phone = '199' + String(++testPhoneSequence).padStart(8, '0')) {
+  return f.request('account/register', { username, password: 'fictional-password-123', confirm_password: 'fictional-password-123', phone, invite_code: code });
+}
+test('invitation is optional, six digit codes are unique and persist for old accounts and restarts', async () => {
+  const f = await fixture(), a = await register(f), b = await register(f, '邀请码乙');
+  assert.match(a.body.invite.code, /^[1-9]\d{5}$/);
+  assert.notEqual(a.body.invite.code, b.body.invite.code);
+  const restarted = await fixture(f.storage);
+  assert.deepEqual((await restarted.request('account/me', undefined, a.cookie)).body.invite, a.body.invite);
+  const key = 'user:邀请码乙', legacy = await f.storage.get(key);
+  await f.storage.delete('invite:code:' + legacy.inviteCode); delete legacy.inviteCode; await f.storage.put(key, legacy);
+  const updated = (await restarted.request('account/me', undefined, b.cookie)).body;
+  assert.match(updated.invite.code, /^\d{6}$/);
+  assert.equal((await restarted.request('account/me', undefined, b.cookie)).body.invite.code, updated.invite.code);
+  assert.equal(await f.storage.get('invite:code:' + updated.invite.code), key);
+});
+test('successful invited registrations award once, duplicates fail, and fake payload balances are ignored', async () => {
+  const f = await fixture(), a = await register(f);
+  const code = a.body.invite.code, phone = '199' + String(++testPhoneSequence).padStart(8, '0');
+  const first = await invitedRegistration(f, '受邀甲', code, phone);
+  assert.equal(first.status, 200, first.body.error); assert.equal(first.body.invite.balance, 0);
+  assert.equal((await invitedRegistration(f, '受邀甲', code, phone)).status, 409);
+  assert.equal((await invitedRegistration(f, '受邀乙', code, phone)).status, 409);
+  assert.deepEqual((await f.request('account/me', undefined, a.cookie)).body.invite, { code, balance: 1, total: 1 });
+  const b = await f.request('account/register', { username: '普通注册丙', password: 'fictional-password-123', confirm_password: 'fictional-password-123',
+    phone: '199' + String(++testPhoneSequence).padStart(8, '0'), inviteCredits: 99, inviteCount: 99 });
+  assert.equal(b.status, 200); assert.equal(b.body.invite.balance, 0); assert.equal(b.body.invite.total, 0);
+  assert.equal((await f.request('account/me', undefined, first.cookie)).body.invite.balance, 0);
+});
+test('invalid invite codes fail before registering and concurrent referred accounts never lose rewards', async () => {
+  const f = await fixture(), a = await register(f);
+  for (const code of ['12345', '1234567', 'abcdef', 123456, '000000']) {
+    const isolated = await fixture();
+    const result = await invitedRegistration(isolated, '无效邀请测试', code);
+    assert.equal(result.status, 400); assert.equal(await isolated.storage.get('user:无效邀请测试'), undefined);
+  }
+  const g = await fixture(), owner = await register(g);
+  const results = await Promise.all(['邀请并发甲', '邀请并发乙'].map(username => invitedRegistration(g, username, owner.body.invite.code)));
+  assert.ok(results.every(r => r.status === 200));
+  assert.equal((await g.request('account/me', undefined, owner.cookie)).body.invite.balance, 2);
+});
+test('invite credit unlocks preparation and any spread, consumes exactly once and preserves purchased rights', async () => {
+  for (const spread of ['single', 'basic', spreads.find(s => s.slots.length > 3 && s.category !== '选择').id]) {
+    const f = await fixture(), a = await register(f);
+    assert.equal((await invitedRegistration(f, '受邀解读用户', a.body.invite.code)).status, 200);
+    await buy(f, a.cookie, spread === 'single' ? 'single-1' : spread === 'basic' ? 'triple-1' : 'complex-1');
+    const paidBefore = (await f.request('account/me', undefined, a.cookie)).body.paid;
+    const p = reading(spread);
+    await model(async calls => {
+      assert.equal((await f.request('paid/polish', p, a.cookie)).status, 200);
+      assert.equal((await f.request('account/me', undefined, a.cookie)).body.invite.balance, 1);
+      const r = await f.request('paid/reading', p, a.cookie);
+      assert.equal(r.status, 200, r.body.error); assert.equal(r.body.invite, true); assert.equal(r.body.followup_remaining, 1);
+      assert.equal(r.body.account.invite.balance, 0); assert.deepEqual(r.body.account.paid, paidBefore);
+      const restarted = await fixture(f.storage), retry = await restarted.request('paid/reading', p, a.cookie);
+      assert.equal(retry.status, 200); assert.equal(retry.body.invite, true); assert.equal(calls.length, 2);
+    });
+  }
+});
+test('invite model failure returns its credit and no-credit users cannot forge or reuse invitations for AI', async () => {
+  const f = await fixture(), a = await register(f), p = reading();
+  await invitedRegistration(f, '受邀失败用户', a.body.invite.code);
+  await model(async () => assert.equal((await f.request('paid/reading', p, a.cookie)).status, 502), 429);
+  assert.equal((await f.request('account/me', undefined, a.cookie)).body.invite.balance, 1);
+  await model(async () => assert.equal((await f.request('paid/reading', p, a.cookie)).status, 200));
+  assert.equal((await f.request('account/me', undefined, a.cookie)).body.invite.balance, 0);
+  await model(async calls => {
+    assert.equal((await f.request('paid/reading', { ...reading(), inviteCredits: 99, invite: true }, a.cookie)).status, 402);
+    assert.equal((await f.request('paid/polish', p, a.cookie)).status, 402); assert.equal(calls.length, 0);
+  });
+});
 test('new registration requires a mainland-format phone and cannot bypass validation through the API', async () => {
   const payload = { username: '新手机号账号', password: 'fictional-password-123', confirm_password: 'fictional-password-123' };
   for (const phone of [undefined, '', 19900000201, '12345678901', '1990000020', '199000002011', '+12125550123', '19900000abc', '<script>', '1'.repeat(33)]) {

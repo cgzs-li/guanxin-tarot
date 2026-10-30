@@ -50,6 +50,23 @@ function phone(value) {
   if (!/^1[3-9]\d{9}$/.test(result)) throw new CommerceError('手机号格式不正确，请填写 11 位中国大陆手机号。');
   return result;
 }
+function inviteCode(value) {
+  if (value === undefined || value === null || (typeof value === 'string' && !value.trim())) return null;
+  if (typeof value !== 'string' || !/^\d{6}$/.test(value.trim())) throw new CommerceError('邀请码请填写 6 位数字。');
+  return value.trim();
+}
+async function assignInviteCode(tx, key, user) {
+  if (user.inviteCode) return;
+  for (let attempt = 0; attempt < 30; attempt++) {
+    const code = String(100000 + crypto.getRandomValues(new Uint32Array(1))[0] % 900000);
+    const codeKey = 'invite:code:' + code;
+    if (await tx.get(codeKey)) continue;
+    user.inviteCode = code;
+    await tx.put(codeKey, key);
+    return;
+  }
+  throw new CommerceError('邀请码暂时无法生成，请稍后重试。', 503);
+}
 async function passwordHash(value, salt) {
   const key = await crypto.subtle.importKey('raw', enc.encode(value), 'PBKDF2', false, ['deriveBits']);
   return hex(await crypto.subtle.deriveBits({ name: 'PBKDF2', salt: enc.encode(salt), iterations: 100000, hash: 'SHA-256' }, key, 256));
@@ -64,7 +81,7 @@ const chinaDay = () => new Date(Date.now() + 8 * 3600000).toISOString().slice(0,
 export const spreadTier = count => count === 1 ? 'single' : count === 3 ? 'triple' : 'complex';
 function allowance(user) {
   return { mode: 'paid', admin_test: user.role === 'owner_test', user: { id: user.id, name: user.name }, free_remaining: user.freeReceipt ? 0 : 1,
-    paid: paidSummary(user) };
+    paid: paidSummary(user), invite: { code: user.inviteCode || null, balance: user.inviteCredits || 0, total: user.inviteCount || 0 } };
 }
 export class Commerce {
   constructor(state, validate, gateway) { this.storage = state.storage; this.validate = validate; this.gateway = gateway; this.paid = new PaidService(state, gateway, products); this.feedback = new Feedback(state.storage); this.audience = new Audience(state.storage); this.voice = new VoiceService(this); }
@@ -86,6 +103,7 @@ export class Commerce {
       let user = await tx.get(key);
       if (!user) { user = { id: crypto.randomUUID(), name: session.username, role: 'owner_test', freeReceipt: null,
         paidBalance: { single: 0, triple: 0, complex: 0 }, paidMemberUntil: 0, paidOrders: [] }; await tx.put(key, user); }
+      if (!user.inviteCode) { await assignInviteCode(tx, key, user); await tx.put(key, user); }
       return user;
     });
     return { key, user, isAdmin: true, sessionKey: session.key };
@@ -111,6 +129,7 @@ export class Commerce {
     const expires = Date.now() + 7 * DAY;
     const user = await this.storage.transaction(async tx => {
       const current = await tx.get(userKey);
+      await assignInviteCode(tx, userKey, current);
       const sessions = current.sessions || [];
       for (const old of sessions.slice(0, Math.max(0, sessions.length - 4))) await tx.delete(old);
       current.sessions = sessions.slice(-4).concat(sessionKey);
@@ -126,6 +145,11 @@ export class Commerce {
     const account = await this.account(request, false);
     if (!account) return reply({ mode: 'paid', user: null, trial: trialWindow(this.gateway.env) });
     await this.paid.recover(account);
+    if (!account.user.inviteCode) await this.storage.transaction(async tx => {
+      const user = await tx.get(account.key);
+      await assignInviteCode(tx, account.key, user);
+      await tx.put(account.key, user);
+    });
     account.user = await this.storage.get(account.key);
     const orders = await Promise.all((account.user.paidOrders || []).slice(-20).reverse().map(orderId => this.storage.get('paid-order:' + orderId)));
     return reply({ ...this.accountData(account.user), orders: orders.filter(Boolean).map(o => this.paid.publicOrder(o)) });
@@ -136,7 +160,7 @@ export class Commerce {
     const owner = await this.storage.get('admin:account');
     if (owner && name(owner.username) === username) throw new CommerceError('这是负责人账号，请直接使用登录。', 409);
     if (payload.confirm_password !== pass) throw new CommerceError('两次输入的密码不一致。');
-    const mobile = phone(payload.phone);
+    const mobile = phone(payload.phone), sponsorCode = inviteCode(payload.invite_code);
     const salt = hex(crypto.getRandomValues(new Uint8Array(16)));
     const hash = await passwordHash(pass, salt);
     const key = 'user:' + username;
@@ -146,10 +170,23 @@ export class Commerce {
       if (!phoneSalt) { phoneSalt = hex(crypto.getRandomValues(new Uint8Array(32))); await tx.put('account:phone-salt', phoneSalt); }
       const phoneKey = 'account:phone:' + await digest(phoneSalt + ':' + mobile);
       if (await tx.get(phoneKey)) throw new CommerceError('此手机号已用于注册，请使用原账号登录。手机号未通过短信验证，若被他人占用请联系负责人。', 409);
-      await tx.put(key, { id: crypto.randomUUID(), name: username, salt, hash, created: Date.now(),
+      const sponsorKey = sponsorCode ? await tx.get('invite:code:' + sponsorCode) : null;
+      if (sponsorCode && !sponsorKey) throw new CommerceError('邀请码不存在，请核对后重试。', 400);
+      if (sponsorKey === key) throw new CommerceError('不能使用自己的邀请码。', 400);
+      const user = { id: crypto.randomUUID(), name: username, salt, hash, created: Date.now(),
         phoneMasked: mobile.slice(0, 3) + '****' + mobile.slice(-4), phoneVerified: false,
-        freeReceipt: null, paidBalance: { single: 0, triple: 0, complex: 0 }, paidMemberUntil: 0, paidOrders: [] });
+        freeReceipt: null, paidBalance: { single: 0, triple: 0, complex: 0 }, paidMemberUntil: 0, paidOrders: [],
+        inviteCredits: 0, inviteCount: 0, invitedBy: sponsorKey };
+      await assignInviteCode(tx, key, user);
+      await tx.put(key, user);
       await tx.put(phoneKey, key);
+      if (sponsorKey) {
+        const sponsor = await tx.get(sponsorKey);
+        if (!sponsor) throw new CommerceError('邀请码已失效，请核对后重试。', 400);
+        sponsor.inviteCredits = (sponsor.inviteCredits || 0) + 1;
+        sponsor.inviteCount = (sponsor.inviteCount || 0) + 1;
+        await tx.put(sponsorKey, sponsor);
+      }
       const total = await tx.get('audience:user-total');
       if (total !== undefined) await tx.put('audience:user-total', total + 1);
     });

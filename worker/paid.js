@@ -28,6 +28,7 @@ export function paidSummary(user) {
 }
 function refund(user, reservation) {
   if (reservation.source === 'pack') user.paidBalance[reservation.tier]++;
+  if (reservation.source === 'invite') user.inviteCredits = (user.inviteCredits || 0) + 1;
   if (reservation.source === 'monthly' && user.paidDay === reservation.day)
     user.paidUsed[reservation.tier] = Math.max(0, user.paidUsed[reservation.tier] - 1);
 }
@@ -113,9 +114,9 @@ export class PaidService {
   async prepare(account, payload, ip, polish, recommend = false) {
     this.checkAI();
     const paid = paidSummary(account.user);
-    if (!account.isAdmin && !trialWindow(this.gateway.env).active && !Object.values(paid.balance).some(n => n > 0) &&
+    if (!account.isAdmin && !trialWindow(this.gateway.env).active && !(account.user.inviteCredits > 0) && !Object.values(paid.balance).some(n => n > 0) &&
       !Object.values(paid.remaining_today || {}).some(n => n > 0))
-      throw new PaidError('AI 润色、三问与牌阵推荐随付费解读提供，请先充值套餐。', 402);
+      throw new PaidError('AI 润色、三问与牌阵推荐需要 AI 权益，请先邀请好友或充值套餐。', 402);
     return polish ? this.gateway.polish(payload, ip, account.isAdmin === true)
       : this.gateway.preparation(payload, ip, recommend, account.isAdmin === true);
   }
@@ -144,8 +145,9 @@ export class PaidService {
       if (account.isAdmin) source = 'owner';
       else if (trialWindow(this.gateway.env).active) source = 'trial';
       else if (user.paidMemberUntil > Date.now() && user.paidUsed[tier] < cap) { source = 'monthly'; user.paidUsed[tier]++; }
+      else if (user.inviteCredits > 0) { source = 'invite'; user.inviteCredits--; }
       else if (user.paidBalance[tier] > 0) { source = 'pack'; user.paidBalance[tier]--; }
-      else throw new PaidError('当前牌阵的付费次数不足，请先充值对应套餐。', 402);
+      else throw new PaidError('当前牌阵的 AI 次数不足，请先邀请朋友或充值对应套餐。', 402);
       const saved = { status: 'pending', fingerprint, tier, source, day: day(), lock, lease: Date.now() + 120000,
         trialEndsAt: source === 'trial' ? trialWindow(this.gateway.env).ends_at : null,
         limit: source === 'owner' ? Number.MAX_SAFE_INTEGER : source === 'monthly' || source === 'trial' ? 3 : 1, sessionId: crypto.randomUUID() };
@@ -154,7 +156,7 @@ export class PaidService {
     if (reservation.status === 'done') return { ...(await this.gateway.open(reservation.result)).response, account: await this.accountData(account) };
     try {
       const result = await this.gateway.reading(payload, ip, account.isAdmin === true);
-      const response = { answer: result.answer, session_id: reservation.sessionId, followup_remaining: reservation.limit, admin_test: account.isAdmin === true, trial: reservation.source === 'trial' };
+      const response = { answer: result.answer, session_id: reservation.sessionId, followup_remaining: reservation.limit, admin_test: account.isAdmin === true, trial: reservation.source === 'trial', invite: reservation.source === 'invite' };
       const expires = Date.now() + 3600000;
       const encrypted = await this.gateway.seal({ version: 1, history: [], response, expires });
       await this.storage.transaction(async tx => {

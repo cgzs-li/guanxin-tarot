@@ -5,6 +5,7 @@ const money = cents => (cents / 100).toFixed(1).replace(/\.0$/, '');
 const tierName = { single: '单张', triple: '三张', complex: '复杂牌阵', monthly: '月卡' };
 let trialState = null, trialReceived = 0, trialTimer;
 const visitPageId = crypto.randomUUID();
+const inviteFromLink = /^\d{6}$/.test(new URLSearchParams(location.search).get('invite') || '') ? new URLSearchParams(location.search).get('invite') : '';
 let visitAccount, visitQueue = Promise.resolve();
 function recordVisit(data) {
   const account = data?.user?.id || '';
@@ -24,7 +25,7 @@ function setTrial(state) {
 }
 function updateTrialUI() {
   const active = trialActive();
-  $('trial-banner-copy').textContent = active ? '限时免费试用 · ' + trialEndLabel() + '（北京时间）前，登录即可免费使用 AI；当前暂停充值。' : '每账号一次免费本地解读；AI 解读和继续使用需要充值。';
+  $('trial-banner-copy').textContent = active ? '限时免费试用 · ' + trialEndLabel() + '（北京时间）前，登录即可免费使用 AI；当前暂停充值。' : '每账号一次免费本地解读；邀请好友或充值可获得 AI 解读机会。';
   for (const id of ['plans-open', 'plans-inline', 'member-plans']) $(id).hidden = active;
   $('reading-paid-label').textContent = active ? '限时免费 AI 解读' : '付费 AI 解读';
   $('reading-free-label').textContent = active ? '本地牌义解读' : '免费本地解读';
@@ -60,6 +61,7 @@ function switchReadingMode(mode) {
   $('reading-mode-help').textContent = mode === 'free'
     ? '每个账号有 1 次完整本地解读。不会调用 AI，点击阅读并成功生成后才使用机会。'
     : '套餐包含 AI 润色、动态三问、牌阵推荐与解读。点击润色或进入下一步会发送问题给模型；解读成功后使用 1 次对应权益。';
+  if (mode === 'paid' && commerce.account?.invite?.balance > 0) $('reading-mode-help').textContent = '内邀 AI 机会可用于任意牌阵，也包含润色、动态三问与牌阵推荐；成功解读后扣 1 次，模型失败不扣次。';
   $('start').textContent = mode === 'free' ? '开始我的免费体验 ↗' : '开始 AI 解读 ↗';
   if (trialActive()) {
     $('reading-mode-help').textContent = '限时试用：AI 润色、三问、牌阵推荐、解读与 3 轮追问免费；不扣原有次卡、月卡或免费机会。' + trialEndLabel() + '（北京时间）恢复原付费规则。';
@@ -88,6 +90,7 @@ function updateChargeNote() {
   $('reading-charge-note').textContent = commerce.mode === 'free'
     ? '本次为免费本地解读 · 成功生成后使用 1 次免费机会，不含 AI。'
     : '本次为付费 AI 解读 · 成功生成后使用对应牌阵 1 次权益，模型失败不扣次。';
+  if (commerce.mode === 'paid' && commerce.account?.invite?.balance > 0) $('reading-charge-note').textContent = '本次可使用内邀 AI 机会 · 月卡当日额度优先，其次使用内邀机会；模型失败不扣次。';
   if (commerce.account?.admin_test) $('reading-charge-note').textContent = '负责人测试 · 无需充值，不扣次数';
   else if (trialActive()) $('reading-charge-note').textContent = '限时免费试用 · 本次不扣次卡、月卡或原免费机会';
 }
@@ -108,6 +111,9 @@ function setAuthTab(tab) {
   $('phone-field').hidden = !registration;
   $('account-phone').required = registration;
   $('account-phone').disabled = !registration;
+  $('invite-field').hidden = !registration;
+  $('account-invite').disabled = !registration;
+  if (registration && !$('account-invite').value) $('account-invite').value = inviteFromLink;
   $('account-phone').setCustomValidity('');
   if (!registration) $('account-phone').value = '';
   $('account-password').autocomplete = registration ? 'new-password' : 'current-password';
@@ -134,6 +140,9 @@ function setAccount(data) {
   else if (trialActive()) $('free-summary').textContent = '限时免费试用开放中 · 原有权益保留，不扣次数';
   $('member-name').textContent = data.user.name;
   $('member-free').textContent = data.admin_test ? '负责人不限次数测试 · 不扣免费机会' : free ? '1 次 · 不含 AI' : '已使用';
+  $('member-invite-balance').textContent = data.admin_test ? '负责人不限次数测试' : (data.invite?.balance || 0) + ' 次 · 任意牌阵，含 1 轮追问';
+  $('member-invite-code').textContent = data.invite?.code || '暂未生成';
+  $('member-invite-total').textContent = '已成功邀请 ' + (data.invite?.total || 0) + ' 人。新朋友注册时填写此码，你获得 1 次 AI 解读。';
   const paid = data.paid, activeMember = paid.member_until > Date.now();
   $('member-balances').textContent = '单张 ' + paid.balance.single + ' 次 · 三张 ' + paid.balance.triple + ' 次 · 复杂牌阵 ' + paid.balance.complex + ' 次';
   $('member-monthly').textContent = activeMember
@@ -231,7 +240,7 @@ async function readCommercial() {
     if (data.account) setAccount(data.account);
     commerce.paidData = data.answer ? data : null;
     showLocalReading();
-    $('reading-result-label').textContent = data.admin_test ? (data.answer ? '负责人 AI 测试 · 不扣次数' : '负责人本地测试 · 不扣次数') : data.trial ? (data.answer ? '限时免费 AI 解读 · 未扣次数' : '限时免费本地解读 · 未扣次数') : data.answer ? 'AI 综合解读 · 已使用付费权益' : '免费本地解读 · 未使用 AI';
+    $('reading-result-label').textContent = data.admin_test ? (data.answer ? '负责人 AI 测试 · 不扣次数' : '负责人本地测试 · 不扣次数') : data.trial ? (data.answer ? '限时免费 AI 解读 · 未扣次数' : '限时免费本地解读 · 未扣次数') : data.invite ? '内邀 AI 解读 · 已用 1 次邀请机会' : data.answer ? 'AI 综合解读 · 已使用付费权益' : '免费本地解读 · 未使用 AI';
     $('reading-feedback').hidden = false; $('feedback-submit').disabled = false; $('feedback-status').textContent = ''; $('feedback-form').reset();
     $('feedback-form').dataset.readingId = commerce.requestId;
     await prepareAI();
@@ -332,10 +341,11 @@ async function commerceFollowup(payload) {
 document.querySelectorAll('[name="reading-mode"]').forEach(input => input.addEventListener('change', () => switchReadingMode(input.value)));
 $('start').addEventListener('click', event => {
   if (!$('user-question').value.trim()) return;
+  if (commerce.mode === 'free' && commerce.account && !commerce.account.free_remaining && !trialActive() && hasPaidAccess()) switchReadingMode('paid');
   if (!commerce.account || (!trialActive() && commerce.mode === 'free' && !commerce.account.free_remaining) || (commerce.mode === 'paid' && !hasPaidAccess())) {
     event.stopImmediatePropagation(); event.preventDefault();
     if (!commerce.account) showAuth('register');
-    else { if (commerce.mode === 'free') switchReadingMode('paid'); $('input-error').textContent = '免费本地解读已使用，继续解读请先充值。'; openPlans(); }
+    else { if (commerce.mode === 'free') switchReadingMode('paid'); $('input-error').textContent = '当前解读机会已用完，可以邀请好友或充值后继续。'; openPlans(); }
   }
 }, true);
 $('begin-draw').addEventListener('click', () => {
@@ -362,6 +372,18 @@ $('account-open').addEventListener('click', async () => {
   try { await refreshAccount(); } catch { $('member-status').textContent = $('auth-status').textContent = '账号状态暂未刷新，请重试。'; }
   if (commerce.account) openDialog($('account-dialog')); else showAuth('login');
 });
+$('invite-announcement-open').addEventListener('click', async () => {
+  try { await refreshAccount(); } catch { /* The registration form remains available offline. */ }
+  if (commerce.account) openDialog($('account-dialog')); else showAuth('register');
+});
+$('invite-announcement-close').addEventListener('click', () => { $('invite-announcement').hidden = true; });
+$('member-invite-copy').addEventListener('click', async () => {
+  const code = commerce.account?.invite?.code;
+  if (!code) return;
+  const link = new URL('/', location.origin); link.searchParams.set('invite', code);
+  try { await navigator.clipboard.writeText(link.href); $('member-invite-status').textContent = '邀请链接已复制，发给朋友即可。'; }
+  catch { $('member-invite-status').textContent = '复制失败，可以长按上面的六位邀请码手动复制。'; }
+});
 $('member-refresh').addEventListener('click', async () => {
   $('member-refresh').disabled = true; $('member-status').textContent = '正在刷新权益与订单…';
   try { await refreshAccount(); $('member-status').textContent = '权益与订单已更新。'; }
@@ -386,8 +408,8 @@ $('auth-form').addEventListener('submit', async event => {
   try {
     const data = await commerceAPI(registration ? '/api/account/register' : '/api/account/login', {
       username: $('account-username').value, password: $('account-password').value, confirm_password: $('account-confirm-password').value,
-      ...(registration ? { phone: $('account-phone').value } : {}) });
-    setAccount(data); $('account-password').value = ''; $('account-confirm-password').value = ''; $('account-phone').value = '';
+      ...(registration ? { phone: $('account-phone').value, invite_code: $('account-invite').value } : {}) });
+    setAccount(data); $('account-password').value = ''; $('account-confirm-password').value = ''; $('account-phone').value = ''; $('account-invite').value = '';
     closeDialog($('account-dialog')); $('input-error').textContent = '';
     const next = commerce.afterAuth; commerce.afterAuth = null;
     if (next) next();
@@ -493,5 +515,5 @@ function hasPaidAccess() {
   const paid = commerce.account?.paid;
   if (commerce.account?.admin_test) return true;
   if (commerce.account && trialActive()) return true;
-  return Boolean(paid && (Object.values(paid.balance).some(n => n > 0) || (paid.remaining_today && Object.values(paid.remaining_today).some(n => n > 0))));
+  return Boolean(commerce.account?.invite?.balance > 0 || paid && (Object.values(paid.balance).some(n => n > 0) || (paid.remaining_today && Object.values(paid.remaining_today).some(n => n > 0))));
 }
