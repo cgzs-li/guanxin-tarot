@@ -31,9 +31,12 @@ async function fixture(storage = new MemoryStorage()) {
   return { storage, gateway, env, request };
 }
 let testPhoneSequence = 0;
-async function register(f, username = '测试账号') {
+async function register(f, username = '测试账号', spendWelcome = true) {
   const a = await f.request('account/register', { username, password: 'fictional-password-123', confirm_password: 'fictional-password-123', phone: '199' + String(++testPhoneSequence).padStart(8, '0') });
-  assert.equal(a.status, 200, a.body.error); return a;
+  assert.equal(a.status, 200, a.body.error);
+  // Older paid/invite tests isolate their own source after the signup gift was used.
+  if (spendWelcome) { const key = 'user:' + a.body.user.name, user = await f.storage.get(key); user.welcomeCredits = 0; await f.storage.put(key, user); }
+  return a;
 }
 function reading(spreadId = 'basic', requestId = crypto.randomUUID()) {
   const sp = spreads.find(s => s.id === spreadId);
@@ -63,6 +66,54 @@ function openTrial(f, ends = Date.now() + 86400000) {
 async function invitedRegistration(f, username, code, phone = '199' + String(++testPhoneSequence).padStart(8, '0')) {
   return f.request('account/register', { username, password: 'fictional-password-123', confirm_password: 'fictional-password-123', phone, invite_code: code });
 }
+test('every new account receives one separate AI reading and old accounts do not gain a retroactive gift', async () => {
+  for (const spread of ['single', 'basic', spreads.find(s => s.slots.length > 3 && s.category !== '选择').id]) {
+    const f = await fixture(), a = await register(f, '欢迎账号', false);
+    assert.equal(a.body.welcome_remaining, 1); assert.equal(a.body.free_remaining, 1);
+    assert.equal(a.body.invite.balance, 0); assert.equal(a.body.paid.balance.single, 0);
+    const p = reading(spread);
+    await model(async calls => {
+      assert.equal((await f.request('paid/polish', p, a.cookie)).status, 200);
+      assert.equal((await f.request('account/me', undefined, a.cookie)).body.welcome_remaining, 1);
+      const first = await f.request('paid/reading', p, a.cookie);
+      assert.equal(first.status, 200, first.body.error); assert.equal(first.body.welcome, true);
+      assert.equal(first.body.followup_remaining, 1); assert.equal(first.body.account.welcome_remaining, 0);
+      assert.equal(first.body.account.free_remaining, 1); assert.equal(first.body.account.invite.balance, 0);
+      const repeated = await f.request('paid/reading', p, a.cookie);
+      assert.equal(repeated.status, 200); assert.equal(repeated.body.welcome, true);
+      assert.equal((await f.request('paid/reading', reading(), a.cookie)).status, 402);
+      assert.equal((await f.request('paid/polish', p, a.cookie)).status, 402);
+      assert.equal(calls.length, 2);
+    });
+    const restarted = await fixture(f.storage);
+    assert.equal((await restarted.request('account/me', undefined, a.cookie)).body.welcome_remaining, 0);
+    assert.equal((await restarted.request('free/reading', reading(), a.cookie)).status, 200);
+  }
+  const legacy = await fixture(), user = await register(legacy), key = 'user:' + user.body.user.name;
+  const old = await legacy.storage.get(key); delete old.welcomeCredits; await legacy.storage.put(key, old);
+  assert.equal((await legacy.request('account/me', undefined, user.cookie)).body.welcome_remaining, 0);
+  assert.equal((await legacy.request('account/login', { username: user.body.user.name, password: 'fictional-password-123' })).body.welcome_remaining, 0);
+});
+test('new account gift is server-only, refunded on model failure, and not spent during trial', async () => {
+  const f = await fixture(), a = await register(f, '首次赠送测试', false), p = reading();
+  await model(async () => assert.equal((await f.request('paid/reading', p, a.cookie)).status, 502), 429);
+  assert.equal((await f.request('account/me', undefined, a.cookie)).body.welcome_remaining, 1);
+  openTrial(f);
+  await model(async () => {
+    const result = await f.request('paid/reading', p, a.cookie);
+    assert.equal(result.status, 200); assert.equal(result.body.trial, true);
+    assert.equal(result.body.account.welcome_remaining, 1);
+  });
+  f.gateway.env.GUANXIN_TRIAL_END = new Date(Date.now() - 1).toISOString();
+  await model(async () => {
+    const result = await f.request('paid/reading', reading(), a.cookie);
+    assert.equal(result.status, 200); assert.equal(result.body.welcome, true);
+  });
+  assert.equal((await f.request('account/me', undefined, a.cookie)).body.welcome_remaining, 0);
+  const forged = await f.request('account/register', { username: '伪造赠送', password: 'fictional-password-123', confirm_password: 'fictional-password-123',
+    phone: '199' + String(++testPhoneSequence).padStart(8, '0'), welcomeCredits: 99 });
+  assert.equal(forged.status, 200); assert.equal(forged.body.welcome_remaining, 1);
+});
 test('invitation is optional, six digit codes are unique and persist for old accounts and restarts', async () => {
   const f = await fixture(), a = await register(f), b = await register(f, '邀请码乙');
   assert.match(a.body.invite.code, /^[1-9]\d{5}$/);

@@ -81,7 +81,8 @@ const chinaDay = () => new Date(Date.now() + 8 * 3600000).toISOString().slice(0,
 export const spreadTier = count => count === 1 ? 'single' : count === 3 ? 'triple' : 'complex';
 function allowance(user) {
   return { mode: 'paid', admin_test: user.role === 'owner_test', user: { id: user.id, name: user.name }, free_remaining: user.freeReceipt ? 0 : 1,
-    paid: paidSummary(user), invite: { code: user.inviteCode || null, balance: user.inviteCredits || 0, total: user.inviteCount || 0 } };
+    paid: paidSummary(user), welcome_remaining: user.welcomeCredits || 0,
+    invite: { code: user.inviteCode || null, balance: user.inviteCredits || 0, total: user.inviteCount || 0 } };
 }
 export class Commerce {
   constructor(state, validate, gateway) { this.storage = state.storage; this.validate = validate; this.gateway = gateway; this.paid = new PaidService(state, gateway, products); this.feedback = new Feedback(state.storage); this.audience = new Audience(state.storage); this.voice = new VoiceService(this); }
@@ -176,7 +177,7 @@ export class Commerce {
       const user = { id: crypto.randomUUID(), name: username, salt, hash, created: Date.now(),
         phoneMasked: mobile.slice(0, 3) + '****' + mobile.slice(-4), phoneVerified: false,
         freeReceipt: null, paidBalance: { single: 0, triple: 0, complex: 0 }, paidMemberUntil: 0, paidOrders: [],
-        inviteCredits: 0, inviteCount: 0, invitedBy: sponsorKey };
+        welcomeCredits: 1, inviteCredits: 0, inviteCount: 0, invitedBy: sponsorKey };
       await assignInviteCode(tx, key, user);
       await tx.put(key, user);
       await tx.put(phoneKey, key);
