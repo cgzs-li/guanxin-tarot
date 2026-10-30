@@ -183,7 +183,7 @@ export class Commerce {
       if (sponsorKey) {
         const sponsor = await tx.get(sponsorKey);
         if (!sponsor) throw new CommerceError('邀请码已失效，请核对后重试。', 400);
-        sponsor.inviteCredits = (sponsor.inviteCredits || 0) + 1;
+        sponsor.inviteCredits = (sponsor.inviteCredits || 0) + 3;
         sponsor.inviteCount = (sponsor.inviteCount || 0) + 1;
         await tx.put(sponsorKey, sponsor);
       }

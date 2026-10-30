@@ -83,7 +83,7 @@ test('successful invited registrations award once, duplicates fail, and fake pay
   assert.equal(first.status, 200, first.body.error); assert.equal(first.body.invite.balance, 0);
   assert.equal((await invitedRegistration(f, '受邀甲', code, phone)).status, 409);
   assert.equal((await invitedRegistration(f, '受邀乙', code, phone)).status, 409);
-  assert.deepEqual((await f.request('account/me', undefined, a.cookie)).body.invite, { code, balance: 1, total: 1 });
+  assert.deepEqual((await f.request('account/me', undefined, a.cookie)).body.invite, { code, balance: 3, total: 1 });
   const b = await f.request('account/register', { username: '普通注册丙', password: 'fictional-password-123', confirm_password: 'fictional-password-123',
     phone: '199' + String(++testPhoneSequence).padStart(8, '0'), inviteCredits: 99, inviteCount: 99 });
   assert.equal(b.status, 200); assert.equal(b.body.invite.balance, 0); assert.equal(b.body.invite.total, 0);
@@ -99,7 +99,7 @@ test('invalid invite codes fail before registering and concurrent referred accou
   const g = await fixture(), owner = await register(g);
   const results = await Promise.all(['邀请并发甲', '邀请并发乙'].map(username => invitedRegistration(g, username, owner.body.invite.code)));
   assert.ok(results.every(r => r.status === 200));
-  assert.equal((await g.request('account/me', undefined, owner.cookie)).body.invite.balance, 2);
+  assert.equal((await g.request('account/me', undefined, owner.cookie)).body.invite.balance, 6);
 });
 test('invite credit unlocks preparation and any spread, consumes exactly once and preserves purchased rights', async () => {
   for (const spread of ['single', 'basic', spreads.find(s => s.slots.length > 3 && s.category !== '选择').id]) {
@@ -110,12 +110,13 @@ test('invite credit unlocks preparation and any spread, consumes exactly once an
     const p = reading(spread);
     await model(async calls => {
       assert.equal((await f.request('paid/polish', p, a.cookie)).status, 200);
-      assert.equal((await f.request('account/me', undefined, a.cookie)).body.invite.balance, 1);
+      assert.equal((await f.request('account/me', undefined, a.cookie)).body.invite.balance, 3);
       const r = await f.request('paid/reading', p, a.cookie);
       assert.equal(r.status, 200, r.body.error); assert.equal(r.body.invite, true); assert.equal(r.body.followup_remaining, 1);
-      assert.equal(r.body.account.invite.balance, 0); assert.deepEqual(r.body.account.paid, paidBefore);
+      assert.equal(r.body.account.invite.balance, 2); assert.deepEqual(r.body.account.paid, paidBefore);
       const restarted = await fixture(f.storage), retry = await restarted.request('paid/reading', p, a.cookie);
       assert.equal(retry.status, 200); assert.equal(retry.body.invite, true); assert.equal(calls.length, 2);
+      assert.equal(retry.body.account.invite.balance, 2);
     });
   }
 });
@@ -123,8 +124,16 @@ test('invite model failure returns its credit and no-credit users cannot forge o
   const f = await fixture(), a = await register(f), p = reading();
   await invitedRegistration(f, '受邀失败用户', a.body.invite.code);
   await model(async () => assert.equal((await f.request('paid/reading', p, a.cookie)).status, 502), 429);
-  assert.equal((await f.request('account/me', undefined, a.cookie)).body.invite.balance, 1);
+  assert.equal((await f.request('account/me', undefined, a.cookie)).body.invite.balance, 3);
   await model(async () => assert.equal((await f.request('paid/reading', p, a.cookie)).status, 200));
+  assert.equal((await f.request('account/me', undefined, a.cookie)).body.invite.balance, 2);
+  await model(async () => {
+    for (const remaining of [1, 0]) {
+      const result = await f.request('paid/reading', reading(), a.cookie);
+      assert.equal(result.status, 200); assert.equal(result.body.invite, true);
+      assert.equal(result.body.account.invite.balance, remaining);
+    }
+  });
   assert.equal((await f.request('account/me', undefined, a.cookie)).body.invite.balance, 0);
   await model(async calls => {
     assert.equal((await f.request('paid/reading', { ...reading(), inviteCredits: 99, invite: true }, a.cookie)).status, 402);

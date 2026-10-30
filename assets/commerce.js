@@ -142,7 +142,7 @@ function setAccount(data) {
   $('member-free').textContent = data.admin_test ? '负责人不限次数测试 · 不扣免费机会' : free ? '1 次 · 不含 AI' : '已使用';
   $('member-invite-balance').textContent = data.admin_test ? '负责人不限次数测试' : (data.invite?.balance || 0) + ' 次 · 任意牌阵，含 1 轮追问';
   $('member-invite-code').textContent = data.invite?.code || '暂未生成';
-  $('member-invite-total').textContent = '已成功邀请 ' + (data.invite?.total || 0) + ' 人。新朋友注册时填写此码，你获得 1 次 AI 解读。';
+  $('member-invite-total').textContent = '已成功邀请 ' + (data.invite?.total || 0) + ' 人。新朋友注册时填写此码，你获得 3 次 AI 解读。';
   const paid = data.paid, activeMember = paid.member_until > Date.now();
   $('member-balances').textContent = '单张 ' + paid.balance.single + ' 次 · 三张 ' + paid.balance.triple + ' 次 · 复杂牌阵 ' + paid.balance.complex + ' 次';
   $('member-monthly').textContent = activeMember
