@@ -373,10 +373,11 @@ $('account-open').addEventListener('click', async () => {
   if (commerce.account) openDialog($('account-dialog')); else showAuth('login');
 });
 $('invite-announcement-open').addEventListener('click', async () => {
+  closeDialog($('invite-announcement'));
   try { await refreshAccount(); } catch { /* The registration form remains available offline. */ }
   if (commerce.account) openDialog($('account-dialog')); else showAuth('register');
 });
-$('invite-announcement-close').addEventListener('click', () => { $('invite-announcement').hidden = true; });
+$('invite-announcement-close').addEventListener('click', () => { closeDialog($('invite-announcement')); });
 $('member-invite-copy').addEventListener('click', async () => {
   const code = commerce.account?.invite?.code;
   if (!code) return;
@@ -499,6 +500,7 @@ $('share-site').addEventListener('click', async () => {
   }
 });
 switchReadingMode('free');
+openDialog($('invite-announcement'));
 Promise.allSettled([
   refreshAccount(),
   commerceAPI('/api/catalog').then(data => { setTrial(data.trial); commerce.products = data.products; renderProducts(); $('create-order').disabled = trialActive(); })

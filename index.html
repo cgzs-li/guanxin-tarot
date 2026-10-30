@@ -35,11 +35,11 @@ details.reading{display:block;scroll-margin-top:24px}details.reading>summary{cur
 .question-tools{display:flex;align-items:center;gap:16px;margin:4px 0 8px}.question-tools .example-btn{flex:1;min-width:0;padding:4px 0;line-height:1.7}.polish-btn{flex-shrink:0;min-height:44px;padding:8px 16px;border:1px solid var(--line);border-radius:4px;background:transparent;color:var(--gold);font-size:13px}.polish-btn:hover{border-color:var(--gold);background:#d4b78210}.polish-help{margin:0 0 12px}.polish-status{font-size:13px;color:var(--muted);margin:8px 0 12px;overflow-wrap:anywhere}.polish-status:empty{display:none}.polish-status[data-error=true]{color:#ffb3ad}.polish-preview{border:1px solid var(--line);padding:16px;margin:12px 0 20px;background:var(--surface);border-radius:6px}.polish-preview h3{font:18px/1.5 var(--serif);color:var(--gold);margin:0 0 10px}.polish-preview p{white-space:pre-wrap;overflow-wrap:anywhere;margin-bottom:12px;font-size:15px}.polish-actions{display:flex;align-items:center;gap:16px}.themes{flex-wrap:wrap}.theme{flex:1;min-width:60px}
 @media(max-width:600px){.question-tools{gap:12px}.polish-btn{padding-inline:12px}.polish-help{font-size:11px;line-height:1.8}}
 </style>
-<link rel="stylesheet" href="/assets/commerce.css?v=20261030-invite">
+<link rel="stylesheet" href="/assets/commerce.css?v=20261030-invite-popup">
 </head>
 <body><div id="experience-app">
 <header><div class="brand"><svg viewBox="0 0 32 40" fill="none" stroke="currentColor" aria-hidden="true"><path d="M16 1v38M1 20h30M16 5 27 20 16 35 5 20Z"/><circle cx="16" cy="20" r="5"/></svg><div>观心<small>GUAN XIN · TAROT</small></div></div><div class="header-tools"><div class="header-note">留一点时间，听见自己。</div><button class="nav-library" id="plans-open" type="button">套餐与会员</button><button class="nav-library" id="account-open" type="button">登录 / 注册</button><a class="nav-library" id="admin-open" href="/assets/admin.html" hidden>管理后台 ↗</a><button class="nav-library" id="nav-library">牌义图书馆 ↗</button></div></header><div class="commerce-banner"><p id="trial-banner-copy">正在检查试用开放时间…</p><button class="text-btn" id="plans-inline" type="button">了解套餐 ↗</button></div>
-<section class="invite-announcement" id="invite-announcement" aria-label="内邀活动公告"><div><strong>内邀体验计划</strong><p>分享你的专属邀请码。每有一位新朋友使用它注册成功，你就获得 1 次 AI 解读机会，可用于任意牌阵。邀请码选填，普通注册照常开放。</p></div><button class="text-btn" id="invite-announcement-open" type="button">查看我的邀请码 ↗</button><button class="text-btn invite-dismiss" id="invite-announcement-close" type="button" aria-label="关闭内邀活动公告">关闭</button></section>
+<dialog class="invite-announcement" id="invite-announcement" aria-labelledby="invite-announcement-title" aria-describedby="invite-announcement-description"><div class="dialog-heading"><h2 id="invite-announcement-title">内邀体验计划</h2><button class="text-btn invite-dismiss" id="invite-announcement-close" type="button" aria-label="关闭内邀活动公告">关闭</button></div><p class="invite-lead">邀请一位新朋友，获得一次 AI 解读。</p><p id="invite-announcement-description">分享你的专属邀请码。每有一位新朋友使用它注册成功，你就获得 1 次 AI 解读机会，可用于任意牌阵。</p><p class="report-note">邀请码选填，普通注册照常开放。登录后可在“我的权益 / 订单”查看邀请码与剩余机会。</p><button class="primary" id="invite-announcement-open" type="button">查看我的邀请码 ↗</button></dialog>
 <main><ol class="journey" aria-label="探索进度"><li aria-current="step"><b>01</b> 写下问题</li><li><b>02</b> 梳理背景</li><li><b>03</b> 抽取卡牌</li><li><b>04</b> 阅读启发</li></ol>
 <section class="intro" id="home">
  <div class="intro-copy"><p class="eyebrow">A MOMENT FOR YOURSELF</p><h1>静下心，<br>让答案<em>慢慢浮现。</em></h1><p class="lede">让心里的问题，慢慢清晰。<br>从一张牌的意象出发，探索当下，也找到下一步。</p>
@@ -510,4 +510,4 @@ if(STATIC_PREVIEW){
 }
 
 </script>
-</div><script src="/assets/commerce.js?v=20261030-invite"></script></body></html>
+</div><script src="/assets/commerce.js?v=20261030-invite-popup"></script></body></html>
